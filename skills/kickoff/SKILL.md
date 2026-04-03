@@ -1,6 +1,6 @@
 ---
 name: kickoff
-description: "Start a new project from an empty folder. Asks smart discovery questions about what to build, then generates CLAUDE.md, BACKLOG.md, PROGRESS.md and starts autonomous development. Use with: /kickoff [project description]"
+description: "Start a new project from an empty folder. Asks smart discovery questions about what to build, then generates CLAUDE.md, BACKLOG.md, PROGRESS.md, creates a private GitHub repo, and starts autonomous development. Use with: /kickoff [project description]"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 argument-hint: [brief project description]
 ---
@@ -29,10 +29,37 @@ If the user's description is already very detailed and answers most of these, sk
 
 After the user answers your questions (or says something like "that's it", "go", "start", "build it"), do the following WITHOUT asking for further confirmation:
 
-### Step 1: Initialize the project
+### Step 1: Initialize git and create a private GitHub repo
+
 ```bash
 git init
 ```
+
+Then create a private GitHub repo using the current folder name. Use the GitHub CLI:
+
+```bash
+# Get folder name for repo name
+REPO_NAME=$(basename "$PWD")
+
+# Check if repo already exists (don't fail if it does)
+gh repo view "$REPO_NAME" > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    # Repo doesn't exist — create it as private
+    gh repo create "$REPO_NAME" --private --source=. --description "[one-line project description]"
+    echo "✅ Created private GitHub repo: $REPO_NAME"
+else
+    # Repo already exists — just set it as remote
+    gh repo view "$REPO_NAME" --json url -q .url | xargs -I {} git remote add origin {} 2>/dev/null || true
+    echo "ℹ️ GitHub repo already exists: $REPO_NAME"
+fi
+```
+
+On Windows, if `gh` is not available, use this alternative:
+```bash
+REPO_NAME=$(basename "$PWD")
+git remote add origin "https://github.com/$(git config user.name || echo 'USER')/$REPO_NAME.git" 2>/dev/null || true
+```
+And note in PROGRESS.md under "Blocked": "GitHub repo may need to be created manually — gh CLI not found."
 
 ### Step 2: Create CLAUDE.md
 
@@ -106,16 +133,26 @@ Each task should be specific and actionable (not vague). Break large features in
 - Brand new project, start from Priority 1
 ```
 
-### Step 5: Commit the setup files
+### Step 5: Create .gitignore
+
+Generate an appropriate .gitignore file based on the tech stack you chose (e.g., node_modules/, .env, __pycache__/, dist/, .DS_Store, etc.).
+
+### Step 6: Commit and push
+
 ```bash
 git add -A
 git commit -m "chore: initialize project with CLAUDE.md, BACKLOG.md, PROGRESS.md"
+git push -u origin main 2>/dev/null || true
 ```
+
+If the push fails, continue anyway — the local repo is fine and the user can push later.
 
 ## Phase 3: Start Building Autonomously
 
 Immediately after generating the files, say ONLY this:
 
-"✅ Project initialized. CLAUDE.md, BACKLOG.md, and PROGRESS.md are ready. Starting autonomous development now."
+"✅ Project initialized. Private GitHub repo created. CLAUDE.md, BACKLOG.md, and PROGRESS.md are ready. Starting autonomous development now."
 
 Then read CLAUDE.md (follow the autonomous rules), read BACKLOG.md, and begin working through Priority 1 tasks. Work continuously without stopping. Do not ask any more questions. Just build.
+
+**Important: Push to GitHub periodically.** After every 3-5 commits, run `git push` to keep the remote repo in sync. Do not ask before pushing — just push.
