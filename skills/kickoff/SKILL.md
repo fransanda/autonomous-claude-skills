@@ -56,54 +56,37 @@ Ask up to 20 questions in ONE message to fully understand the project. Cover ALL
 
 Based on the project description, think about EVERY tool, service, and integration you will need to build this project. For each one, determine if there is a CLI, API, or MCP server available.
 
-After listing your project questions, add a **Tooling section** in the SAME message:
+Before presenting questions, silently run checks to detect what's installed:
+- `git --version`, `node --version`, `npm --version`, `gh --version`, `python --version`, `docker --version`
+- And any other tools relevant to the project description
+
+**ONLY show tools that are MISSING or need user action.** Do NOT list tools that are already installed — the user doesn't need to know about those. Only bother the user with things that require their action.
+
+After your project questions, add a **Tooling section** in the SAME message. Only include this section if there ARE missing tools or credentials needed. If everything is installed, skip this section entirely.
 
 ```
-📦 TOOLING — I'll need these tools to build this project:
+📦 TOOLING — Before I start, you need to set up:
 
-Already checking what's available on your system...
+MISSING (required to build this project):
+  ❌ [tool] — not installed. Run: [exact install command]
+  ❌ [tool] — not installed. Run: [exact install command]
 
-REQUIRED (I need these to build):
-  ✅ git — [installed/not installed]
-  ✅ node/npm — [installed/not installed]
-  ✅ gh (GitHub CLI) — [installed/not installed]
-  [... list every tool needed]
+CREDENTIALS NEEDED:
+  🔑 [service] — I need [specific key/token]. Do you have one?
+  🔑 [service] — I need [specific key/token]. Do you have one?
 
-RECOMMENDED (will make development better):
-  [... optional but helpful tools]
+MCP SERVERS (optional, would help):
+  🔌 [server] — available for [task]. Want me to use it?
 
-NEED YOU TO SET UP (requires your authentication or account):
-  [... anything that needs the user to log in, create an account, get an API key, etc.]
+Should I install the missing tools? Provide any credentials you have.
 ```
 
-To determine what's installed, run quick checks silently BEFORE presenting the questions:
-- `git --version`
-- `node --version`
-- `npm --version`
-- `gh --version`
-- `python --version`
-- `docker --version`
-- And any other relevant tools based on the project description
+If ALL tools are installed and no credentials are needed, do NOT show a tooling section at all — just ask the project questions.
 
-For each tool that is NOT installed, include an install command the user can run. For example:
-- "❌ gh (GitHub CLI) — not installed. Run: `winget install GitHub.cli` then `gh auth login`"
-- "❌ node — not installed. Run: `winget install OpenJS.NodeJS.LTS`"
-- "❌ Docker — not installed. Download from https://docker.com/get-started"
-
-For tools requiring authentication or API keys:
-- "🔑 Google Cloud — needs API key. Do you have one, or should I use free alternatives?"
-- "🔑 Stripe — needs account + API keys. Do you have a Stripe account?"
-- "🔑 Supabase — needs project URL + anon key. Do you have an existing project?"
-
-For MCP servers that could help:
-- "🔌 MCP: Playwright (browser testing) — available, should I use it?"
-- "🔌 MCP: Google Docs — you have this connected already"
-
-Present ALL of this (project questions + tooling) in ONE single message. The user answers everything at once.
-
+Present everything in ONE single message. The user answers all at once.
 Wait for the user to answer before proceeding.
 
-**CRITICAL RULE:** After the user answers, DO NOT ask follow-up questions. DO NOT ask for clarification. DO NOT ask "should I install X now?" If the user confirmed a tool should be installed, just install it silently in Phase 2. If anything is unclear, make your best judgment and note assumptions in CLAUDE.md. This is your ONE AND ONLY opportunity to ask questions.
+**CRITICAL RULE:** After the user answers, DO NOT ask follow-up questions. DO NOT ask for clarification. If the user confirmed a tool should be installed, just install it silently in Phase 2. If anything is unclear, make your best judgment and note assumptions in CLAUDE.md. This is your ONE AND ONLY opportunity to ask questions.
 
 ## Phase 2: Setup Tooling & Generate Project Files
 
@@ -197,8 +180,6 @@ You are an autonomous developer. Work continuously without human interaction.
 - Constraints, budget, and scope boundaries
 - Any assumptions you made where answers were unclear
 
-This section should be detailed enough that any developer (or future Claude session) could understand the entire project without asking a single question.
-
 ### Step 3: Create BACKLOG.md
 
 Generate a detailed BACKLOG.md with checkboxed tasks organized by priority:
@@ -210,7 +191,7 @@ Generate a detailed BACKLOG.md with checkboxed tasks organized by priority:
 - Priority 6: Documentation, deployment, and launch prep
 - Ongoing: Bug fixes, test coverage, code quality, dependency updates
 
-Each task should be specific and actionable (not vague). Break large features into multiple small tasks. Aim for 30-60 total tasks that cover everything discussed in discovery.
+Aim for 30-60 specific, actionable tasks.
 
 ### Step 4: Create PROGRESS.md
 
@@ -232,7 +213,7 @@ Each task should be specific and actionable (not vague). Break large features in
 
 ### Step 5: Create .gitignore
 
-Generate an appropriate .gitignore file based on the tech stack you chose.
+Generate an appropriate .gitignore file based on the tech stack.
 
 ### Step 6: Commit and push
 
@@ -242,14 +223,10 @@ git commit -m "chore: initialize project with CLAUDE.md, BACKLOG.md, PROGRESS.md
 git push -u origin main 2>/dev/null || true
 ```
 
-If the push fails, continue anyway.
-
 ## Phase 3: Start Building Autonomously
 
-Immediately after generating the files, say ONLY this:
+Say ONLY: "✅ Project initialized. Private GitHub repo created. Starting autonomous development now."
 
-"✅ Project initialized. Private GitHub repo created. CLAUDE.md, BACKLOG.md, and PROGRESS.md are ready. Starting autonomous development now."
+Then read CLAUDE.md, read BACKLOG.md, and begin working through Priority 1 tasks continuously. No more questions. Just build.
 
-Then read CLAUDE.md (follow the autonomous rules), read BACKLOG.md, and begin working through Priority 1 tasks. Work continuously without stopping. Do not ask any more questions. Just build.
-
-**Important: Push to GitHub periodically.** After every 3-5 commits, run `git push` to keep the remote repo in sync. Do not ask before pushing — just push.
+**Push to GitHub periodically.** After every 3-5 commits, run `git push`. Do not ask before pushing.
