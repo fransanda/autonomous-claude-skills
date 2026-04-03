@@ -1,29 +1,60 @@
 ---
 name: kickoff
-description: "Start a new project from an empty folder. Asks smart discovery questions about what to build, then generates CLAUDE.md, BACKLOG.md, PROGRESS.md, creates a private GitHub repo, and starts autonomous development. Use with: /kickoff [project description]"
+description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 20), then generates CLAUDE.md, BACKLOG.md, PROGRESS.md, creates a private GitHub repo, and starts fully autonomous development. Use with: /kickoff [project description]"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 argument-hint: [brief project description]
 ---
 
 You are starting a NEW PROJECT from scratch. The user has just described what they want to build: $ARGUMENTS
 
-## Phase 1: Discovery (DO THIS FIRST)
+## Phase 1: Comprehensive Discovery (DO THIS FIRST — THIS IS YOUR ONLY CHANCE TO ASK QUESTIONS)
 
-Ask the user 5-8 smart clarifying questions to fully understand the project. Group them into one message. Cover:
+This is the ONLY time you are allowed to ask the user anything. After this phase, you will NEVER ask another question — you will make all decisions autonomously. So be thorough now.
 
-1. **Core functionality**: What are the 3-5 most important features?
-2. **Users**: Who will use this? Just the user personally, or others too?
-3. **Platform**: Web app, mobile app, desktop, API, CLI, Chrome extension?
-4. **Integrations**: Any external APIs, databases, or services needed?
-5. **Auth**: Does it need user authentication? What kind?
-6. **Data**: What data does it store? Where? (local, cloud DB, etc.)
-7. **Budget**: Any paid services acceptable, or free-only?
-8. **Existing assets**: Any designs, specs, existing code, or APIs to use?
+Ask up to 20 questions in ONE message to fully understand the project. Cover ALL of these categories. Skip questions only if the user's description already clearly answers them:
 
-Ask ALL questions in ONE message. Keep them short and specific.
-Wait for the user to answer before proceeding to Phase 2.
+**Core Product:**
+1. What are the 3-5 most important features? What should the MVP include?
+2. Who will use this? (personal use, public users, specific audience?)
+3. What problem does this solve? What's the main user workflow?
 
-If the user's description is already very detailed and answers most of these, skip the ones that are already clear. Only ask what's genuinely missing.
+**Platform & Access:**
+4. What platform? (web app, mobile app, desktop, browser extension, API, CLI?)
+5. Does it need to work offline?
+6. Does it need to be responsive / mobile-friendly?
+7. Any specific device or browser requirements?
+
+**Users & Auth:**
+8. Does it need user accounts / authentication? What kind? (email, Google, SSO?)
+9. Are there different user roles? (admin, regular user, viewer?)
+10. Is there user-generated content? What kind?
+
+**Data & Backend:**
+11. What data does it store? Describe the main entities.
+12. Where should data live? (local only, cloud database, API-backed?)
+13. Does it need real-time features? (live updates, chat, notifications?)
+14. Any specific data privacy requirements? (GDPR, encryption, etc.)
+
+**Integrations & APIs:**
+15. Any external APIs or services needed? (payments, maps, email, AI, etc.)
+16. Does it need to connect to any existing tools? (Google, Slack, etc.)
+17. Any credentials or API keys you already have that I should use?
+
+**Design & UX:**
+18. Any design preferences? (dark mode, minimal, colorful, specific brand?)
+19. Any existing designs, mockups, Figma files, or screenshots?
+20. Any reference apps or websites that feel like what you want?
+
+**Constraints:**
+21. Budget for services? (free-only, or some paid APIs acceptable?)
+22. Any hard deadlines or priority features that need to ship first?
+23. Anything that should explicitly NOT be included?
+
+Present ALL relevant questions in a single numbered list. Keep each question short (one line).
+Do NOT split questions across multiple messages.
+Wait for the user to answer.
+
+**IMPORTANT:** After the user answers, DO NOT ask follow-up questions. DO NOT ask for clarification. If anything is still unclear, make your best judgment and note your assumptions in CLAUDE.md. This is your ONE AND ONLY opportunity to ask questions. After their response, you go silent and build.
 
 ## Phase 2: Generate Project Files
 
@@ -35,22 +66,18 @@ After the user answers your questions (or says something like "that's it", "go",
 git init
 ```
 
-Then create a private GitHub repo using the current folder name. Use the GitHub CLI:
+Then create a private GitHub repo using the current folder name:
 
 ```bash
-# Get folder name for repo name
 REPO_NAME=$(basename "$PWD")
 
-# Check if repo already exists (don't fail if it does)
 gh repo view "$REPO_NAME" > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-    # Repo doesn't exist — create it as private
     gh repo create "$REPO_NAME" --private --source=. --description "[one-line project description]"
-    echo "✅ Created private GitHub repo: $REPO_NAME"
+    echo "Created private GitHub repo: $REPO_NAME"
 else
-    # Repo already exists — just set it as remote
     gh repo view "$REPO_NAME" --json url -q .url | xargs -I {} git remote add origin {} 2>/dev/null || true
-    echo "ℹ️ GitHub repo already exists: $REPO_NAME"
+    echo "GitHub repo already exists: $REPO_NAME"
 fi
 ```
 
@@ -101,19 +128,29 @@ You are an autonomous developer. Work continuously without human interaction.
 ---
 ```
 
-**Section B:** A comprehensive project description synthesized from the user's input and your Q&A. Include: project name, what it does, who it's for, tech stack (you decide the best one), architecture overview, integrations, credentials/config needed, and any constraints.
+**Section B:** A comprehensive project description synthesized from the user's input and your Q&A. Include:
+- Project name, what it does, who it's for
+- Full tech stack (you decide the best one based on the answers)
+- Architecture overview and data model
+- All integrations, credentials, and config
+- Design direction and UX decisions
+- Constraints, budget, and scope boundaries
+- Any assumptions you made where answers were unclear
+
+This section should be detailed enough that any developer (or future Claude session) could understand the entire project without asking a single question.
 
 ### Step 3: Create BACKLOG.md
 
 Generate a detailed BACKLOG.md with checkboxed tasks organized by priority:
 - Priority 1: Project setup and scaffolding
-- Priority 2: Core features (the main functionality)
+- Priority 2: Core features (the main functionality / MVP)
 - Priority 3: Secondary features
 - Priority 4: Integrations and external services
 - Priority 5: Testing and polish
-- Ongoing: Bug fixes, test coverage, code quality, documentation
+- Priority 6: Documentation, deployment, and launch prep
+- Ongoing: Bug fixes, test coverage, code quality, dependency updates
 
-Each task should be specific and actionable (not vague). Break large features into multiple small tasks.
+Each task should be specific and actionable (not vague). Break large features into multiple small tasks. Aim for 30-60 total tasks that cover everything discussed in discovery.
 
 ### Step 4: Create PROGRESS.md
 
@@ -135,7 +172,7 @@ Each task should be specific and actionable (not vague). Break large features in
 
 ### Step 5: Create .gitignore
 
-Generate an appropriate .gitignore file based on the tech stack you chose (e.g., node_modules/, .env, __pycache__/, dist/, .DS_Store, etc.).
+Generate an appropriate .gitignore file based on the tech stack you chose.
 
 ### Step 6: Commit and push
 
