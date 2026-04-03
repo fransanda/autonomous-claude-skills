@@ -1,15 +1,17 @@
 ---
 name: kickoff
-description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 20), then generates CLAUDE.md, BACKLOG.md, PROGRESS.md, creates a private GitHub repo, and starts fully autonomous development. Use with: /kickoff [project description]"
+description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 20), checks required tooling (CLI/API/MCP), generates CLAUDE.md, BACKLOG.md, PROGRESS.md, creates a private GitHub repo, and starts fully autonomous development. Use with: /kickoff [project description]"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 argument-hint: [brief project description]
 ---
 
 You are starting a NEW PROJECT from scratch. The user has just described what they want to build: $ARGUMENTS
 
-## Phase 1: Comprehensive Discovery (DO THIS FIRST — THIS IS YOUR ONLY CHANCE TO ASK QUESTIONS)
+## Phase 1: Comprehensive Discovery (THIS IS YOUR ONLY CHANCE TO ASK QUESTIONS)
 
 This is the ONLY time you are allowed to ask the user anything. After this phase, you will NEVER ask another question — you will make all decisions autonomously. So be thorough now.
+
+### Part A: Project Questions
 
 Ask up to 20 questions in ONE message to fully understand the project. Cover ALL of these categories. Skip questions only if the user's description already clearly answers them:
 
@@ -50,15 +52,72 @@ Ask up to 20 questions in ONE message to fully understand the project. Cover ALL
 22. Any hard deadlines or priority features that need to ship first?
 23. Anything that should explicitly NOT be included?
 
-Present ALL relevant questions in a single numbered list. Keep each question short (one line).
-Do NOT split questions across multiple messages.
-Wait for the user to answer.
+### Part B: Tooling Requirements
 
-**IMPORTANT:** After the user answers, DO NOT ask follow-up questions. DO NOT ask for clarification. If anything is still unclear, make your best judgment and note your assumptions in CLAUDE.md. This is your ONE AND ONLY opportunity to ask questions. After their response, you go silent and build.
+Based on the project description, think about EVERY tool, service, and integration you will need to build this project. For each one, determine if there is a CLI, API, or MCP server available.
 
-## Phase 2: Generate Project Files
+After listing your project questions, add a **Tooling section** in the SAME message:
 
-After the user answers your questions (or says something like "that's it", "go", "start", "build it"), do the following WITHOUT asking for further confirmation:
+```
+📦 TOOLING — I'll need these tools to build this project:
+
+Already checking what's available on your system...
+
+REQUIRED (I need these to build):
+  ✅ git — [installed/not installed]
+  ✅ node/npm — [installed/not installed]
+  ✅ gh (GitHub CLI) — [installed/not installed]
+  [... list every tool needed]
+
+RECOMMENDED (will make development better):
+  [... optional but helpful tools]
+
+NEED YOU TO SET UP (requires your authentication or account):
+  [... anything that needs the user to log in, create an account, get an API key, etc.]
+```
+
+To determine what's installed, run quick checks silently BEFORE presenting the questions:
+- `git --version`
+- `node --version`
+- `npm --version`
+- `gh --version`
+- `python --version`
+- `docker --version`
+- And any other relevant tools based on the project description
+
+For each tool that is NOT installed, include an install command the user can run. For example:
+- "❌ gh (GitHub CLI) — not installed. Run: `winget install GitHub.cli` then `gh auth login`"
+- "❌ node — not installed. Run: `winget install OpenJS.NodeJS.LTS`"
+- "❌ Docker — not installed. Download from https://docker.com/get-started"
+
+For tools requiring authentication or API keys:
+- "🔑 Google Cloud — needs API key. Do you have one, or should I use free alternatives?"
+- "🔑 Stripe — needs account + API keys. Do you have a Stripe account?"
+- "🔑 Supabase — needs project URL + anon key. Do you have an existing project?"
+
+For MCP servers that could help:
+- "🔌 MCP: Playwright (browser testing) — available, should I use it?"
+- "🔌 MCP: Google Docs — you have this connected already"
+
+Present ALL of this (project questions + tooling) in ONE single message. The user answers everything at once.
+
+Wait for the user to answer before proceeding.
+
+**CRITICAL RULE:** After the user answers, DO NOT ask follow-up questions. DO NOT ask for clarification. DO NOT ask "should I install X now?" If the user confirmed a tool should be installed, just install it silently in Phase 2. If anything is unclear, make your best judgment and note assumptions in CLAUDE.md. This is your ONE AND ONLY opportunity to ask questions.
+
+## Phase 2: Setup Tooling & Generate Project Files
+
+After the user answers, do the following WITHOUT asking for further confirmation:
+
+### Step 0: Install and configure any missing tools the user approved
+
+For each tool the user confirmed should be installed:
+- Run the install command
+- Verify it installed correctly
+- Run any necessary auth/login steps if possible
+- If installation fails, note it in PROGRESS.md under "Blocked" and continue
+
+Do NOT ask for confirmation — the user already approved in Phase 1.
 
 ### Step 1: Initialize git and create a private GitHub repo
 
@@ -81,7 +140,7 @@ else
 fi
 ```
 
-On Windows, if `gh` is not available, use this alternative:
+On Windows, if `gh` is not available and the user didn't install it:
 ```bash
 REPO_NAME=$(basename "$PWD")
 git remote add origin "https://github.com/$(git config user.name || echo 'USER')/$REPO_NAME.git" 2>/dev/null || true
@@ -128,11 +187,12 @@ You are an autonomous developer. Work continuously without human interaction.
 ---
 ```
 
-**Section B:** A comprehensive project description synthesized from the user's input and your Q&A. Include:
+**Section B:** A comprehensive project description synthesized from the user's input and Q&A. Include:
 - Project name, what it does, who it's for
 - Full tech stack (you decide the best one based on the answers)
 - Architecture overview and data model
 - All integrations, credentials, and config
+- Available tooling and MCP servers
 - Design direction and UX decisions
 - Constraints, budget, and scope boundaries
 - Any assumptions you made where answers were unclear
@@ -162,7 +222,7 @@ Each task should be specific and actionable (not vague). Break large features in
 - Current branch: main
 
 ## Blocked (needs human)
-- (nothing yet)
+- (list any tools that failed to install or credentials still needed)
 
 ## Completed Tasks
 
@@ -182,7 +242,7 @@ git commit -m "chore: initialize project with CLAUDE.md, BACKLOG.md, PROGRESS.md
 git push -u origin main 2>/dev/null || true
 ```
 
-If the push fails, continue anyway — the local repo is fine and the user can push later.
+If the push fails, continue anyway.
 
 ## Phase 3: Start Building Autonomously
 
