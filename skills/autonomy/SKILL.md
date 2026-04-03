@@ -1,6 +1,6 @@
 ---
 name: autonomy
-description: "Add autonomous development to an existing project. Scans the codebase, checks required tooling (CLI/API/MCP), adds autonomous rules to CLAUDE.md, generates BACKLOG.md and PROGRESS.md, then starts working continuously. Use with: /autonomy"
+description: "Add autonomous development to an existing project. Scans the codebase, checks required tooling (CLI/API/MCP), creates a private GitHub repo if needed, adds autonomous rules to CLAUDE.md, generates BACKLOG.md and PROGRESS.md, then starts working continuously. Use with: /autonomy"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
@@ -13,50 +13,71 @@ Understand: the tech stack, architecture, current state, what's built, what's mi
 
 ## Step 2: Tooling audit
 
-Based on the codebase analysis, determine EVERY tool, service, and integration needed to continue developing this project. Run quick checks to see what's installed:
+Based on the codebase analysis, determine EVERY tool, service, and integration needed to continue developing this project.
 
-- Check all relevant CLIs: `git --version`, `node --version`, `npm --version`, `gh --version`, `python --version`, `docker --version`, and any others relevant to the detected stack
-- Check for package managers, build tools, and test runners used in the project
+Silently run checks to detect what's installed:
+- `git --version`, `node --version`, `npm --version`, `gh --version`, `python --version`, `docker --version`
+- Check package managers, build tools, and test runners used in the project
+- Check for required API keys or credentials referenced in the code (look in .env, .env.example, config files, environment variable references)
 - Check if any MCP servers could help (Playwright, Google APIs, databases, etc.)
-- Check for required API keys or credentials referenced in the code (look for .env files, config files, environment variable references)
+- Check if a git remote exists: `git remote -v`
 
-Present a tooling report to the user:
+**ONLY show tools that are MISSING or need user action.** Do NOT list tools that are already installed and working — the user doesn't need to know about those.
+
+If there are missing tools, credentials, or no GitHub repo, present this to the user:
 
 ```
-📦 TOOLING AUDIT for this project:
+📦 TOOLING AUDIT — Before I start, you need to set up:
 
-INSTALLED ✅:
-  ✅ git 2.x
-  ✅ node 20.x
-  ✅ npm 10.x
-  [...]
+MISSING (required to continue development):
+  ❌ [tool] — not installed. Run: [exact install command]
 
-MISSING ❌ (needed to build/run this project):
-  ❌ [tool] — Run: [install command]
-  ❌ [tool] — Run: [install command]
-
-CREDENTIALS NEEDED 🔑:
+CREDENTIALS NEEDED:
   🔑 [service] — .env references [VAR_NAME] but no value found. Do you have this?
-  🔑 [service] — config references [API_KEY]. Do you have this?
 
-MCP SERVERS AVAILABLE 🔌:
-  🔌 [server] — could help with [task]. Want me to use it?
+GITHUB:
+  ❌ No remote repo found. I'll create a private GitHub repo for this project.
+     (or skip this line entirely if remote already exists)
 
-Should I install the missing tools? List any credentials you can provide.
+MCP SERVERS (optional, would help):
+  🔌 [server] — available for [task]. Want me to use it?
+
+Should I install the missing tools and create the GitHub repo? Provide any credentials you have.
 After this, I won't ask anything else — I'll start building.
 ```
 
-Wait for the user to respond about missing tools and credentials.
+If EVERYTHING is already set up (all tools installed, credentials present, remote exists), skip the tooling report entirely and go straight to Step 4. Only bother the user if something needs their action.
 
-**CRITICAL:** This is the ONLY question you ask. After the user responds, never ask anything again. If the user says "go" or "yes install them" or similar, proceed. If they skip something, note it in PROGRESS.md under "Blocked" and work around it.
+Wait for the user to respond if you showed a tooling report.
 
-## Step 3: Install approved tools
+**CRITICAL:** This is the ONLY question you ask. After the user responds, never ask anything again.
+
+## Step 3: Install approved tools & create GitHub repo
 
 For each tool the user approved:
 - Run the install command
 - Verify it installed
-- If it needs auth that the user can do themselves (like `gh auth login`), tell them to do it and wait briefly
 - If installation fails, note it in PROGRESS.md and continue
+
+Create a private GitHub repo if one doesn't exist:
+
+```bash
+REPO_NAME=$(basename "$PWD")
+
+REMOTE=$(git remote get-url origin 2>/dev/null)
+if [ -z "$REMOTE" ]; then
+    gh repo view "$REPO_NAME" > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        gh repo create "$REPO_NAME" --private --source=. --description "[project description from CLAUDE.md]"
+        echo "Created private GitHub repo: $REPO_NAME"
+    else
+        gh repo view "$REPO_NAME" --json url -q .url | xargs -I {} git remote add origin {} 2>/dev/null || true
+        echo "GitHub repo already exists, remote added: $REPO_NAME"
+    fi
+fi
+```
+
+If `gh` is not available, note in PROGRESS.md under "Blocked": "GitHub repo may need to be created manually."
 
 ## Step 4: Update or create CLAUDE.md
 
@@ -130,11 +151,12 @@ Each task must be specific and actionable with file references where possible.
 - Starting from BACKLOG.md Priority 1
 ```
 
-## Step 7: Commit
+## Step 7: Commit and push
 
 ```bash
 git add CLAUDE.md BACKLOG.md PROGRESS.md
 git commit -m "chore: add autonomous development workflow files"
+git push 2>/dev/null || true
 ```
 
 ## Step 8: Start building
@@ -142,3 +164,5 @@ git commit -m "chore: add autonomous development workflow files"
 Say ONLY: "✅ Autonomous mode activated. Starting work on the first backlog item."
 
 Then immediately read CLAUDE.md, read BACKLOG.md, and start working through tasks continuously. Do not ask any questions. Do not present plans. Just build.
+
+**Push to GitHub periodically.** After every 3-5 commits, run `git push`. Do not ask before pushing.
