@@ -20,6 +20,7 @@ Claude Code is powerful, but by default it stops after every task to ask "what n
 
 ### Prerequisites
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) installed and authenticated
+- [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated — needed for `/kickoff` to auto-create repos
 - Git installed
 - A Claude Pro, Max, or API subscription
 
@@ -67,7 +68,7 @@ claude --dangerously-skip-permissions
 ```
 /kickoff I want to build a recipe sharing app where users upload recipes with photos and rate each other's dishes
 ```
-Answer Claude's questions → Claude starts building → walk away.
+Answer Claude's questions → Claude creates a private GitHub repo → starts building → walk away.
 
 ### Existing project:
 ```bash
@@ -119,26 +120,50 @@ Claude reads these files, follows the rules, and works through the backlog conti
 
 **What happens:**
 1. You describe what you want to build
-2. Claude asks 5-8 smart clarifying questions (features, platform, integrations, budget, etc.)
-3. You answer
-4. Claude generates all three files and immediately starts coding
+2. Claude asks up to 20 comprehensive discovery questions in ONE message — covering features, platform, auth, data, APIs, design, budget, and constraints
+3. You answer everything in one go
+4. Claude **never asks another question** — it creates a private GitHub repo, generates all three files, and starts coding autonomously
+
+The discovery covers 7 categories: core product, platform & access, users & auth, data & backend, integrations & APIs, design & UX, and constraints. Questions you already answered in your description are skipped automatically.
 
 **Example:**
 ```
 You:    /kickoff I want a personal budget tracker that categorizes expenses
 
-Claude: Before I start building, a few questions:
-        1. Web app, mobile, desktop, or all?
-        2. Does it connect to a bank API or manual entry only?
-        3. Just for you, or multi-user with accounts?
-        4. Budget for paid services? Or free-only?
-        5. Any specific tech preferences?
-        6. Does it need charts/visualizations?
+Claude: This is my only chance to ask questions — after this I build silently.
 
-You:    1. Web app  2. Manual entry for now  3. Just me  4. Free only
-        5. No preference  6. Yes, charts. Start building.
+        Core Product:
+        1. What are the top 3-5 features for the MVP?
+        2. Just for you, or will others use it too?
+        3. What's the main daily workflow?
 
-Claude: ✅ Project initialized. Starting autonomous development now.
+        Platform:
+        4. Web app, mobile, or desktop?
+        5. Need offline support?
+
+        Data & Auth:
+        6. Need user accounts?
+        7. Where should data live — local or cloud?
+        8. What entities? (transactions, categories, budgets?)
+
+        Integrations:
+        9. Connect to a bank API or manual entry?
+        10. Need charts/visualizations?
+
+        Design:
+        11. Dark mode, light, or specific style?
+        12. Any apps that feel like what you want?
+
+        Constraints:
+        13. Free-only or paid services OK?
+        14. Anything that should NOT be included?
+
+You:    1. Add expenses, categorize, monthly charts  2. Just me  3. Open app,
+        add expense, check monthly summary  4. Web app  5. No  6. No  
+        7. Local  8. Yes those  9. Manual  10. Yes  11. Dark  12. Like Mint 
+        but simpler  13. Free only  14. No social features. Build it.
+
+Claude: ✅ Project initialized. Private GitHub repo created. Starting now.
         [begins coding without stopping]
 ```
 
@@ -163,9 +188,9 @@ Claude: ✅ Project initialized. Starting autonomous development now.
 3. Makes sure the app starts without errors
 4. Runs tests and fixes any failures
 5. Commits everything
-6. Prints a clear test report
+6. Prints a clear test report with the exact command to run
 
-You can also specify how many minutes Claude has to wrap up:
+You can specify how many minutes Claude has to wrap up:
 ```
 /ship 5
 ```
@@ -278,6 +303,7 @@ EVENING (2 min)
 | Claude's responses get short/slow | Type `/compact` to free up context |
 | Session dies completely | Relaunch Claude, type: *"Read PROGRESS.md and BACKLOG.md. Continue where you left off."* |
 | Claude asks about tech choices | Make sure CLAUDE.md has the autonomous rules at the top |
+| GitHub repo not created | Install GitHub CLI: `winget install GitHub.cli` then `gh auth login` |
 
 ---
 
@@ -288,6 +314,7 @@ EVENING (2 min)
 - **Ship early, ship often.** Don't wait for the entire backlog. Use `/ship` after a few tasks, test, give feedback, resume.
 - **Always use `--dangerously-skip-permissions` inside a git repo.** If Claude breaks something: `git reset --hard`.
 - **Use `/compact` in long sessions.** It frees context space so Claude can keep working longer.
+- **`/kickoff` auto-creates a private GitHub repo** using the folder name. Make sure `gh` CLI is installed and authenticated.
 
 ---
 
