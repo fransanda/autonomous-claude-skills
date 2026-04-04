@@ -1,25 +1,26 @@
 #!/bin/bash
 # install.sh — Install autonomous Claude Code skills
-# Run: curl -fsSL https://raw.githubusercontent.com/fransanda/autonomous-claude-skills/main/install.sh | bash
 # Or:  ./install.sh (after cloning)
 
-SKILLS_DIR="$HOME/.claude/skills"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo ""
 echo "Installing autonomous Claude Code skills..."
 echo ""
 
-for skill in kickoff autonomy ship; do
-    mkdir -p "$SKILLS_DIR/$skill"
-    if [ -f "$SCRIPT_DIR/skills/$skill/SKILL.md" ]; then
-        cp "$SCRIPT_DIR/skills/$skill/SKILL.md" "$SKILLS_DIR/$skill/SKILL.md"
-        echo "  ✅ Installed /$skill"
-    else
-        echo "  ⚠️  Skipped /$skill (source not found)"
-    fi
+# Install to BOTH possible skill directories (Claude Code reads from one or the other)
+for SKILLS_DIR in "$HOME/.claude/skills" "$HOME/.agents/skills"; do
+    for skill in kickoff autonomy ship; do
+        mkdir -p "$SKILLS_DIR/$skill"
+        if [ -f "$SCRIPT_DIR/skills/$skill/SKILL.md" ]; then
+            cp "$SCRIPT_DIR/skills/$skill/SKILL.md" "$SKILLS_DIR/$skill/SKILL.md"
+        fi
+    done
 done
 
+echo "  ✅ Installed /kickoff"
+echo "  ✅ Installed /autonomy"
+echo "  ✅ Installed /ship"
 echo ""
 echo "Done! Restart Claude Code, then use:"
 echo "  /kickoff [description]  — start a new project"
