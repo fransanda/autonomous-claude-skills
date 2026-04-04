@@ -26,20 +26,16 @@ Claude Code is powerful, but by default it stops after every task to ask "what n
 
 ### Windows (PowerShell)
 ```powershell
-git clone https://github.com/fransanda/autonomous-claude-skills.git "$env:USERPROFILE\.claude\skills\_autonomous-tmp"
-Copy-Item "$env:USERPROFILE\.claude\skills\_autonomous-tmp\skills\kickoff" "$env:USERPROFILE\.claude\skills\kickoff" -Recurse -Force
-Copy-Item "$env:USERPROFILE\.claude\skills\_autonomous-tmp\skills\autonomy" "$env:USERPROFILE\.claude\skills\autonomy" -Recurse -Force
-Copy-Item "$env:USERPROFILE\.claude\skills\_autonomous-tmp\skills\ship" "$env:USERPROFILE\.claude\skills\ship" -Recurse -Force
-Remove-Item "$env:USERPROFILE\.claude\skills\_autonomous-tmp" -Recurse -Force
+git clone https://github.com/fransanda/autonomous-claude-skills.git "$env:TEMP\_acs"
+foreach ($s in @("kickoff","autonomy","ship")) { foreach ($d in @("$env:USERPROFILE\.claude\skills","$env:USERPROFILE\.agents\skills")) { New-Item "$d\$s" -ItemType Directory -Force | Out-Null; Copy-Item "$env:TEMP\_acs\skills\$s\SKILL.md" "$d\$s\SKILL.md" -Force } }
+Remove-Item "$env:TEMP\_acs" -Recurse -Force
 ```
 
 ### Mac / Linux
 ```bash
-git clone https://github.com/fransanda/autonomous-claude-skills.git ~/.claude/skills/_autonomous-tmp
-cp -r ~/.claude/skills/_autonomous-tmp/skills/kickoff ~/.claude/skills/kickoff
-cp -r ~/.claude/skills/_autonomous-tmp/skills/autonomy ~/.claude/skills/autonomy
-cp -r ~/.claude/skills/_autonomous-tmp/skills/ship ~/.claude/skills/ship
-rm -rf ~/.claude/skills/_autonomous-tmp
+git clone https://github.com/fransanda/autonomous-claude-skills.git /tmp/_acs
+for d in ~/.claude/skills ~/.agents/skills; do for s in kickoff autonomy ship; do mkdir -p "$d/$s" && cp "/tmp/_acs/skills/$s/SKILL.md" "$d/$s/SKILL.md"; done; done
+rm -rf /tmp/_acs
 ```
 
 ### Using the install script (alternative)
@@ -120,52 +116,10 @@ Claude reads these files, follows the rules, and works through the backlog conti
 
 **What happens:**
 1. You describe what you want to build
-2. Claude asks up to 20 comprehensive discovery questions in ONE message — covering features, platform, auth, data, APIs, design, budget, and constraints
-3. You answer everything in one go
-4. Claude **never asks another question** — it creates a private GitHub repo, generates all three files, and starts coding autonomously
-
-The discovery covers 7 categories: core product, platform & access, users & auth, data & backend, integrations & APIs, design & UX, and constraints. Questions you already answered in your description are skipped automatically.
-
-**Example:**
-```
-You:    /kickoff I want a personal budget tracker that categorizes expenses
-
-Claude: This is my only chance to ask questions — after this I build silently.
-
-        Core Product:
-        1. What are the top 3-5 features for the MVP?
-        2. Just for you, or will others use it too?
-        3. What's the main daily workflow?
-
-        Platform:
-        4. Web app, mobile, or desktop?
-        5. Need offline support?
-
-        Data & Auth:
-        6. Need user accounts?
-        7. Where should data live — local or cloud?
-        8. What entities? (transactions, categories, budgets?)
-
-        Integrations:
-        9. Connect to a bank API or manual entry?
-        10. Need charts/visualizations?
-
-        Design:
-        11. Dark mode, light, or specific style?
-        12. Any apps that feel like what you want?
-
-        Constraints:
-        13. Free-only or paid services OK?
-        14. Anything that should NOT be included?
-
-You:    1. Add expenses, categorize, monthly charts  2. Just me  3. Open app,
-        add expense, check monthly summary  4. Web app  5. No  6. No  
-        7. Local  8. Yes those  9. Manual  10. Yes  11. Dark  12. Like Mint 
-        but simpler  13. Free only  14. No social features. Build it.
-
-Claude: ✅ Project initialized. Private GitHub repo created. Starting now.
-        [begins coding without stopping]
-```
+2. Claude checks your system for required tools — only tells you about **missing** ones (won't list what's already installed)
+3. Claude asks up to 20 comprehensive discovery questions in ONE message — covering features, platform, auth, data, APIs, design, budget, and constraints
+4. You answer everything in one go
+5. Claude **never asks another question** — it installs missing tools, creates a private GitHub repo, generates all three files, and starts coding autonomously
 
 ---
 
@@ -173,10 +127,12 @@ Claude: ✅ Project initialized. Private GitHub repo created. Starting now.
 
 **What happens:**
 1. Claude reads your entire codebase
-2. If CLAUDE.md exists, Claude prepends the autonomous rules (keeps everything else)
-3. Claude generates BACKLOG.md by scanning for bugs, missing features, test gaps, improvements
-4. Claude creates PROGRESS.md
-5. Claude starts working immediately — no questions
+2. Claude audits your tooling — only shows **missing** tools and credentials needed
+3. Claude creates a private GitHub repo if none exists
+4. If CLAUDE.md exists, Claude prepends the autonomous rules (keeps everything else)
+5. Claude generates BACKLOG.md by scanning for bugs, missing features, test gaps, improvements
+6. Claude creates PROGRESS.md
+7. Claude starts working immediately
 
 ---
 
@@ -298,6 +254,7 @@ EVENING (2 min)
 | Problem | Fix |
 |---|---|
 | `/kickoff` not found | Restart Claude Code — skills load at startup |
+| Still not found after restart | Re-run the install command — skills go in both `~/.claude/skills/` and `~/.agents/skills/` |
 | Claude stops after 1 task | Start with: *"Read CLAUDE.md. Work through BACKLOG.md continuously. Never stop between tasks."* |
 | Claude asks "is this plan okay?" | Type: *"Don't ask. Just execute. Continue."* |
 | Claude's responses get short/slow | Type `/compact` to free up context |
@@ -320,13 +277,13 @@ EVENING (2 min)
 
 ## How It's Built
 
-Each skill is a single `SKILL.md` file in `~/.claude/skills/[name]/SKILL.md`:
+Each skill is a single `SKILL.md` file. The installer copies to both possible locations:
 
 ```
-~/.claude/skills/
-├── kickoff/SKILL.md     ← /kickoff command
-├── autonomy/SKILL.md    ← /autonomy command
-└── ship/SKILL.md        ← /ship command
+~/.claude/skills/          ~/.agents/skills/
+├── kickoff/SKILL.md       ├── kickoff/SKILL.md
+├── autonomy/SKILL.md      ├── autonomy/SKILL.md
+└── ship/SKILL.md          └── ship/SKILL.md
 ```
 
 Skills are global — they work in any project directory.
@@ -337,14 +294,12 @@ Skills are global — they work in any project directory.
 
 ### Windows
 ```powershell
-Remove-Item "$env:USERPROFILE\.claude\skills\kickoff" -Recurse -Force
-Remove-Item "$env:USERPROFILE\.claude\skills\autonomy" -Recurse -Force
-Remove-Item "$env:USERPROFILE\.claude\skills\ship" -Recurse -Force
+foreach ($d in @("$env:USERPROFILE\.claude\skills","$env:USERPROFILE\.agents\skills")) { foreach ($s in @("kickoff","autonomy","ship")) { Remove-Item "$d\$s" -Recurse -Force -ErrorAction SilentlyContinue } }
 ```
 
 ### Mac / Linux
 ```bash
-rm -rf ~/.claude/skills/kickoff ~/.claude/skills/autonomy ~/.claude/skills/ship
+for d in ~/.claude/skills ~/.agents/skills; do rm -rf "$d/kickoff" "$d/autonomy" "$d/ship"; done
 ```
 
 ---
