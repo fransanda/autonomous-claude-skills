@@ -2,27 +2,33 @@
 # Run: irm https://raw.githubusercontent.com/fransanda/autonomous-claude-skills/main/install.ps1 | iex
 # Or:  .\install.ps1 (after cloning)
 
-$skillsDir = "$env:USERPROFILE\.claude\skills"
+# Install to BOTH possible skill directories (Claude Code reads from one or the other)
+$skillsDirs = @(
+    "$env:USERPROFILE\.claude\skills",
+    "$env:USERPROFILE\.agents\skills"
+)
 
 Write-Host ""
 Write-Host "Installing autonomous Claude Code skills..." -ForegroundColor Cyan
 Write-Host ""
 
-foreach ($skill in @("kickoff", "autonomy", "ship")) {
-    $dest = "$skillsDir\$skill"
-    if (!(Test-Path $dest)) {
-        New-Item -ItemType Directory -Path $dest -Force | Out-Null
-    }
-    
-    $source = Join-Path $PSScriptRoot "skills\$skill\SKILL.md"
-    if (Test-Path $source) {
-        Copy-Item $source "$dest\SKILL.md" -Force
-        Write-Host "  Installed /$skill" -ForegroundColor Green
-    } else {
-        Write-Host "  Skipped /$skill (source not found)" -ForegroundColor Yellow
+foreach ($skillsDir in $skillsDirs) {
+    foreach ($skill in @("kickoff", "autonomy", "ship")) {
+        $dest = "$skillsDir\$skill"
+        if (!(Test-Path $dest)) {
+            New-Item -ItemType Directory -Path $dest -Force | Out-Null
+        }
+        
+        $source = Join-Path $PSScriptRoot "skills\$skill\SKILL.md"
+        if (Test-Path $source) {
+            Copy-Item $source "$dest\SKILL.md" -Force
+        }
     }
 }
 
+Write-Host "  Installed /kickoff" -ForegroundColor Green
+Write-Host "  Installed /autonomy" -ForegroundColor Green
+Write-Host "  Installed /ship" -ForegroundColor Green
 Write-Host ""
 Write-Host "Done! Restart Claude Code, then use:" -ForegroundColor Green
 Write-Host "  /kickoff [description]  — start a new project" -ForegroundColor White
