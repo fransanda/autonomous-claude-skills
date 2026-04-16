@@ -2,7 +2,7 @@
 
 **Three slash commands that turn Claude Code into a fully autonomous developer.**
 
-Claude Code is powerful, but by default it stops after every task to ask "what next?" and pauses mid-work to ask "is this plan okay?" These skills eliminate both problems. Claude works continuously through a backlog of tasks, makes all technical decisions itself, and only stops when it genuinely needs human input (API keys, paid services, etc.).
+Claude Code is powerful, but by default it stops after every task to ask "what next?" and pauses mid-work to ask "is this plan okay?" These skills eliminate both problems. Claude works continuously through a backlog, makes all technical decisions itself, and only stops when it genuinely needs human input (API keys, paid services, etc.).
 
 ---
 
@@ -14,40 +14,47 @@ Claude Code is powerful, but by default it stops after every task to ask "what n
 | `/autonomy` | Add autonomous mode to an **existing project** | You have code, want Claude to keep building |
 | `/ship` or `/ship [minutes]` | Wrap up, make sure it runs, prepare for testing | You want to test what Claude built |
 
+Every new project kicked off with `/kickoff` or adopted via `/autonomy` automatically gets:
+- A private GitHub repo (via `gh` CLI)
+- `CLAUDE.md`, `BACKLOG.md`, `PROGRESS.md` setup
+- A baked-in **🔒 Security Defaults** block (private by default, env vars for secrets, auth on every endpoint, parameterized queries, input validation, hashed passwords, HTTPS, least-privilege access) that Claude follows throughout development
+
 ---
 
 ## Install
 
 ### Prerequisites
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) installed and authenticated
-- [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated — needed for `/kickoff` to auto-create repos
+- [GitHub CLI](https://cli.github.com/) (`gh`) installed and authenticated — needed for auto-creating repos
 - Git installed
 - A Claude Pro, Max, or API subscription
 
-### Windows (PowerShell)
+### Windows (PowerShell) — one-liner
+```powershell
+irm https://raw.githubusercontent.com/fransanda/autonomous-claude-skills/main/install.ps1 | iex
+```
+
+### Mac / Linux — one-liner
+```bash
+curl -fsSL https://raw.githubusercontent.com/fransanda/autonomous-claude-skills/main/install.sh | bash
+```
+
+Both installers automatically copy skills to **both** `~/.claude/skills/` and `~/.agents/skills/` — Claude Code reads from one or the other depending on your setup.
+
+### Manual install (if you prefer)
+
+**Windows:**
 ```powershell
 git clone https://github.com/fransanda/autonomous-claude-skills.git "$env:TEMP\_acs"
 foreach ($s in @("kickoff","autonomy","ship")) { foreach ($d in @("$env:USERPROFILE\.claude\skills","$env:USERPROFILE\.agents\skills")) { New-Item "$d\$s" -ItemType Directory -Force | Out-Null; Copy-Item "$env:TEMP\_acs\skills\$s\SKILL.md" "$d\$s\SKILL.md" -Force } }
 Remove-Item "$env:TEMP\_acs" -Recurse -Force
 ```
 
-### Mac / Linux
+**Mac / Linux:**
 ```bash
 git clone https://github.com/fransanda/autonomous-claude-skills.git /tmp/_acs
 for d in ~/.claude/skills ~/.agents/skills; do for s in kickoff autonomy ship; do mkdir -p "$d/$s" && cp "/tmp/_acs/skills/$s/SKILL.md" "$d/$s/SKILL.md"; done; done
 rm -rf /tmp/_acs
-```
-
-### Using the install script (alternative)
-```bash
-git clone https://github.com/fransanda/autonomous-claude-skills.git
-cd autonomous-claude-skills
-
-# Windows:
-powershell -ExecutionPolicy Bypass -File install.ps1
-
-# Mac/Linux:
-bash install.sh
 ```
 
 > **⚠️ Restart Claude Code after installing.** Skills are loaded at startup — they won't appear until you start a new session.
@@ -74,7 +81,7 @@ claude --dangerously-skip-permissions
 ```
 /autonomy
 ```
-Claude scans the codebase and starts working. No questions asked.
+Claude scans the codebase, flags any missing tools or security issues, and starts working.
 
 ### Ready to test:
 ```
@@ -91,9 +98,7 @@ Claude wraps up, makes the app run, and tells you exactly how to test it.
 By default, Claude Code has behaviors that prevent truly autonomous work:
 
 1. **Task completion stops** — Claude finishes a task and says *"Done! What would you like me to work on next?"* You have to babysit the terminal every 10 minutes.
-
 2. **Plan confirmation requests** — Claude generates a plan and asks *"Does this look correct before I proceed?"* More waiting.
-
 3. **Decision paralysis** — Claude asks *"Should I use React or Vue?"* instead of just picking one and building.
 
 ### The Solution
@@ -102,7 +107,7 @@ These skills create three files in every project:
 
 | File | Purpose |
 |---|---|
-| `CLAUDE.md` | Project description + explicit rules: *"never ask, never stop, never present plans — just execute and keep going"* |
+| `CLAUDE.md` | Project description + explicit rules: *"never ask, never stop, never present plans — just execute and keep going"* + security defaults |
 | `BACKLOG.md` | A checkboxed task list. Claude picks the next unchecked item, builds it, checks it off, moves to the next. |
 | `PROGRESS.md` | State file so Claude can resume where it left off if the session restarts. |
 
@@ -116,10 +121,10 @@ Claude reads these files, follows the rules, and works through the backlog conti
 
 **What happens:**
 1. You describe what you want to build
-2. Claude checks your system for required tools — only tells you about **missing** ones (won't list what's already installed)
+2. Claude silently checks your system for required tools — only tells you about **missing** ones
 3. Claude asks up to 20 comprehensive discovery questions in ONE message — covering features, platform, auth, data, APIs, design, budget, and constraints
 4. You answer everything in one go
-5. Claude **never asks another question** — it installs missing tools, creates a private GitHub repo, generates all three files, and starts coding autonomously
+5. Claude **never asks another question** — it installs missing tools, generates project files, creates a private GitHub repo, and starts coding autonomously
 
 ---
 
@@ -129,10 +134,9 @@ Claude reads these files, follows the rules, and works through the backlog conti
 1. Claude reads your entire codebase
 2. Claude audits your tooling — only shows **missing** tools and credentials needed
 3. Claude creates a private GitHub repo if none exists
-4. If CLAUDE.md exists, Claude prepends the autonomous rules (keeps everything else)
-5. Claude generates BACKLOG.md by scanning for bugs, missing features, test gaps, improvements
-6. Claude creates PROGRESS.md
-7. Claude starts working immediately
+4. Claude prepends autonomous rules + security defaults to CLAUDE.md (preserves everything else)
+5. Claude generates BACKLOG.md by scanning for bugs, missing features, test gaps — and flags security violations (hardcoded secrets, missing auth, SQL injection risks) as P1
+6. Claude creates PROGRESS.md and starts working
 
 ---
 
@@ -186,6 +190,24 @@ You're always in control. Just type in the terminal at any moment — Claude pau
 
 ---
 
+## 🔒 Security Defaults (baked into every project)
+
+Every `CLAUDE.md` generated by `/kickoff` or `/autonomy` includes this block, which Claude re-reads at every session start:
+
+- Private repo always (unless told otherwise)
+- Every endpoint/script requires auth (unless explicitly marked public)
+- Secrets in env vars only — never hardcode, never commit
+- `.env`, `*.key`, `*.pem` in `.gitignore` before first commit
+- Parameterized queries only — no string-concat SQL
+- Validate/sanitize all user input server-side
+- Hash passwords (bcrypt/argon2), never log secrets or PII
+- HTTPS only in production, CORS restricted to known origins
+- Least-privilege by default — users access only their own data
+
+Nine lines. Minimal context cost. Claude applies them to every decision.
+
+---
+
 ## Running Multiple Projects Simultaneously
 
 Open multiple terminal tabs:
@@ -197,35 +219,6 @@ Tab 3:  cd ~/project-gamma && claude --dangerously-skip-permissions
 ```
 
 Each session works independently through its own BACKLOG.md.
-
----
-
-## Daily Workflow
-
-```
-MORNING (5 min)
-├── Open BACKLOG.md → add/reorder today's priorities
-├── Terminal tab per project → claude --dangerously-skip-permissions
-├── Paste: "Read CLAUDE.md and BACKLOG.md. Work continuously. Start now."
-└── Walk away
-
-DURING THE DAY
-├── Glance at terminal tabs to see progress
-├── Type instructions to redirect if needed
-├── Check git log to see commits
-└── Check PROGRESS.md for status
-
-WHEN READY TO TEST
-├── Type: /ship
-├── Read the test report
-├── Run the app, test it
-└── Type: "Resume the backlog. Also: [feedback]"
-
-EVENING (2 min)
-├── Review BACKLOG.md — see what's done
-├── Review PROGRESS.md — check for blocked items
-└── Reorder tasks for tomorrow
-```
 
 ---
 
@@ -254,39 +247,13 @@ EVENING (2 min)
 | Problem | Fix |
 |---|---|
 | `/kickoff` not found | Restart Claude Code — skills load at startup |
-| Still not found after restart | Re-run the install command — skills go in both `~/.claude/skills/` and `~/.agents/skills/` |
+| Still not found after restart | Re-run the install — skills go in both `~/.claude/skills/` and `~/.agents/skills/` |
 | Claude stops after 1 task | Start with: *"Read CLAUDE.md. Work through BACKLOG.md continuously. Never stop between tasks."* |
 | Claude asks "is this plan okay?" | Type: *"Don't ask. Just execute. Continue."* |
 | Claude's responses get short/slow | Type `/compact` to free up context |
 | Session dies completely | Relaunch Claude, type: *"Read PROGRESS.md and BACKLOG.md. Continue where you left off."* |
-| Claude asks about tech choices | Make sure CLAUDE.md has the autonomous rules at the top |
-| GitHub repo not created | Install GitHub CLI: `winget install GitHub.cli` then `gh auth login` |
-
----
-
-## Tips
-
-- **`BACKLOG.md` is your steering wheel.** Reorder tasks to change priorities. Add or remove items anytime.
-- **`PROGRESS.md` is your dashboard.** Check it to see status, blocked items, and what Claude did.
-- **Ship early, ship often.** Don't wait for the entire backlog. Use `/ship` after a few tasks, test, give feedback, resume.
-- **Always use `--dangerously-skip-permissions` inside a git repo.** If Claude breaks something: `git reset --hard`.
-- **Use `/compact` in long sessions.** It frees context space so Claude can keep working longer.
-- **`/kickoff` auto-creates a private GitHub repo** using the folder name. Make sure `gh` CLI is installed and authenticated.
-
----
-
-## How It's Built
-
-Each skill is a single `SKILL.md` file. The installer copies to both possible locations:
-
-```
-~/.claude/skills/          ~/.agents/skills/
-├── kickoff/SKILL.md       ├── kickoff/SKILL.md
-├── autonomy/SKILL.md      ├── autonomy/SKILL.md
-└── ship/SKILL.md          └── ship/SKILL.md
-```
-
-Skills are global — they work in any project directory.
+| GitHub repo not created | Install GitHub CLI: `winget install GitHub.cli` (Windows) or `brew install gh` (Mac), then `gh auth login` |
+| `gh` installed but repo still not created | Run `gh auth login` — CLI is installed but not authenticated |
 
 ---
 

@@ -59,27 +59,47 @@ For each tool the user approved:
 - Verify it installed
 - If installation fails, note it in PROGRESS.md and continue
 
-Create a private GitHub repo if one doesn't exist:
+Create a private GitHub repo if one doesn't already exist as the remote:
 
 ```bash
 REPO_NAME=$(basename "$PWD")
+REMOTE=$(git remote get-url origin 2>/dev/null || true)
 
-REMOTE=$(git remote get-url origin 2>/dev/null)
 if [ -z "$REMOTE" ]; then
-    gh repo view "$REPO_NAME" > /dev/null 2>&1
-    if [ $? -ne 0 ]; then
-        gh repo create "$REPO_NAME" --private --source=. --description "[project description from CLAUDE.md]"
-        echo "Created private GitHub repo: $REPO_NAME"
+    if command -v gh >/dev/null 2>&1; then
+        GH_USER=$(gh api user -q .login 2>/dev/null || true)
+        if [ -n "$GH_USER" ]; then
+            # Make sure there is at least one commit before pushing
+            if ! git rev-parse HEAD >/dev/null 2>&1; then
+                git add -A && git commit -m "chore: initial commit" --allow-empty
+            fi
+            git branch -M main 2>/dev/null || true
+            
+            if gh repo view "$GH_USER/$REPO_NAME" >/dev/null 2>&1; then
+                echo "ℹ️  Repo $GH_USER/$REPO_NAME already exists — adding as remote"
+                REPO_URL=$(gh repo view "$GH_USER/$REPO_NAME" --json url -q .url)
+                git remote add origin "$REPO_URL" 2>/dev/null || git remote set-url origin "$REPO_URL"
+                git push -u origin main 2>/dev/null || true
+            else
+                gh repo create "$REPO_NAME" --private --source=. --push --description "PROJECT_DESCRIPTION_HERE"
+                echo "✅ Created and pushed to private GitHub repo: $GH_USER/$REPO_NAME"
+            fi
+        else
+            echo "⚠️  gh is installed but not authenticated. Run: gh auth login"
+            echo "   Skipping GitHub repo creation — local commits will still work"
+        fi
     else
-        gh repo view "$REPO_NAME" --json url -q .url | xargs -I {} git remote add origin {} 2>/dev/null || true
-        echo "GitHub repo already exists, remote added: $REPO_NAME"
+        echo "⚠️  GitHub CLI (gh) not found. Skipping repo creation."
+        echo "   Install: winget install GitHub.cli (Windows) or brew install gh (Mac/Linux)"
     fi
 fi
 ```
 
-If `gh` is not available, note in PROGRESS.md under "Blocked": "GitHub repo may need to be created manually."
+Replace `PROJECT_DESCRIPTION_HERE` with a real one-line description from the codebase analysis.
 
-Also verify the .gitignore includes `.env`, `*.key`, `*.pem`, and other secret-bearing files. Add them if missing.
+If gh isn't installed or authenticated, note it in PROGRESS.md under "Blocked".
+
+Also verify the .gitignore includes `.env`, `*.key`, `*.pem`, `credentials.json`, and other secret-bearing files. Add them if missing.
 
 ## Step 4: Update or create CLAUDE.md
 

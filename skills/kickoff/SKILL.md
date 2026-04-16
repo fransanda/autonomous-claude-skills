@@ -69,10 +69,8 @@ After your project questions, add a **Tooling section** in the SAME message. Onl
 
 MISSING (required to build this project):
   ❌ [tool] — not installed. Run: [exact install command]
-  ❌ [tool] — not installed. Run: [exact install command]
 
 CREDENTIALS NEEDED:
-  🔑 [service] — I need [specific key/token]. Do you have one?
   🔑 [service] — I need [specific key/token]. Do you have one?
 
 MCP SERVERS (optional, would help):
@@ -102,33 +100,13 @@ For each tool the user confirmed should be installed:
 
 Do NOT ask for confirmation — the user already approved in Phase 1.
 
-### Step 1: Initialize git and create a private GitHub repo
+### Step 1: Initialize git
 
 ```bash
 git init
 ```
 
-Then create a private GitHub repo using the current folder name:
-
-```bash
-REPO_NAME=$(basename "$PWD")
-
-gh repo view "$REPO_NAME" > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-    gh repo create "$REPO_NAME" --private --source=. --description "[one-line project description]"
-    echo "Created private GitHub repo: $REPO_NAME"
-else
-    gh repo view "$REPO_NAME" --json url -q .url | xargs -I {} git remote add origin {} 2>/dev/null || true
-    echo "GitHub repo already exists: $REPO_NAME"
-fi
-```
-
-On Windows, if `gh` is not available and the user didn't install it:
-```bash
-REPO_NAME=$(basename "$PWD")
-git remote add origin "https://github.com/$(git config user.name || echo 'USER')/$REPO_NAME.git" 2>/dev/null || true
-```
-And note in PROGRESS.md under "Blocked": "GitHub repo may need to be created manually — gh CLI not found."
+The GitHub repo will be created in Step 6 after the initial commit exists — this avoids issues with empty repos and branch name mismatches.
 
 ### Step 2: Create CLAUDE.md
 
@@ -224,19 +202,64 @@ Aim for 30-60 specific, actionable tasks.
 
 ### Step 5: Create .gitignore
 
-Generate an appropriate .gitignore file based on the tech stack. Always include `.env`, `*.key`, `*.pem`, `credentials.json`, and any secret-bearing files before first commit.
+Generate an appropriate .gitignore file based on the tech stack. ALWAYS include these regardless of stack (security-critical):
+```
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+credentials.json
+secrets.json
+.DS_Store
+```
+Plus the usual stack-specific entries (`node_modules/`, `__pycache__/`, `dist/`, `build/`, `.next/`, etc.).
 
-### Step 6: Commit and push
+### Step 6: Initial commit and create private GitHub repo
+
+Commit the setup files first (this gives us a commit and a `main` branch to push):
 
 ```bash
 git add -A
 git commit -m "chore: initialize project with CLAUDE.md, BACKLOG.md, PROGRESS.md"
-git push -u origin main 2>/dev/null || true
+git branch -M main
 ```
+
+Now create the private GitHub repo. Use a robust check that handles missing gh, unauthenticated gh, and existing repos correctly:
+
+```bash
+REPO_NAME=$(basename "$PWD")
+
+if command -v gh >/dev/null 2>&1; then
+    GH_USER=$(gh api user -q .login 2>/dev/null || true)
+    if [ -n "$GH_USER" ]; then
+        if gh repo view "$GH_USER/$REPO_NAME" >/dev/null 2>&1; then
+            echo "ℹ️  Repo $GH_USER/$REPO_NAME already exists — adding as remote"
+            REPO_URL=$(gh repo view "$GH_USER/$REPO_NAME" --json url -q .url)
+            git remote add origin "$REPO_URL" 2>/dev/null || git remote set-url origin "$REPO_URL"
+            git push -u origin main 2>/dev/null || true
+        else
+            gh repo create "$REPO_NAME" --private --source=. --push --description "PROJECT_DESCRIPTION_HERE"
+            echo "✅ Created and pushed to private GitHub repo: $GH_USER/$REPO_NAME"
+        fi
+    else
+        echo "⚠️  gh is installed but not authenticated. Run: gh auth login"
+        echo "   Skipping GitHub repo creation — local commits will still work"
+    fi
+else
+    echo "⚠️  GitHub CLI (gh) not found. Skipping repo creation."
+    echo "   Install: winget install GitHub.cli (Windows) or brew install gh (Mac/Linux)"
+fi
+```
+
+Replace `PROJECT_DESCRIPTION_HERE` with a real one-line description of the project.
+
+If gh isn't installed or authenticated, note it in PROGRESS.md under "Blocked" so the user sees it.
 
 ## Phase 3: Start Building Autonomously
 
-Say ONLY: "✅ Project initialized. Private GitHub repo created. Starting autonomous development now."
+Say ONLY: "✅ Project initialized. Starting autonomous development now."
 
 Then read CLAUDE.md, read BACKLOG.md, and begin working through Priority 1 tasks continuously. No more questions. Just build.
 
