@@ -167,6 +167,17 @@ You are an autonomous developer. Work continuously without human interaction.
 
 ### Work loop: Read PROGRESS.md → Read BACKLOG.md → Build next item → Mark done → Commit → Repeat. DO NOT STOP.
 
+### 🔒 SECURITY DEFAULTS
+- Private repo always (unless told otherwise)
+- Every endpoint/script requires auth (unless explicitly marked public)
+- Secrets in env vars only — never hardcode, never commit
+- .env, *.key, *.pem in .gitignore before first commit
+- Parameterized queries only — no string-concat SQL
+- Validate/sanitize all user input server-side
+- Hash passwords (bcrypt/argon2), never log secrets or PII
+- HTTPS only in production, CORS restricted to known origins
+- Least-privilege by default — users access only their own data
+
 ---
 ```
 
@@ -213,7 +224,7 @@ Aim for 30-60 specific, actionable tasks.
 
 ### Step 5: Create .gitignore
 
-Generate an appropriate .gitignore file based on the tech stack.
+Generate an appropriate .gitignore file based on the tech stack. Always include `.env`, `*.key`, `*.pem`, `credentials.json`, and any secret-bearing files before first commit.
 
 ### Step 6: Commit and push
 

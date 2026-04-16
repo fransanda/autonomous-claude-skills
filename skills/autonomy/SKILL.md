@@ -79,6 +79,8 @@ fi
 
 If `gh` is not available, note in PROGRESS.md under "Blocked": "GitHub repo may need to be created manually."
 
+Also verify the .gitignore includes `.env`, `*.key`, `*.pem`, and other secret-bearing files. Add them if missing.
+
 ## Step 4: Update or create CLAUDE.md
 
 If CLAUDE.md exists, PREPEND the autonomous rules block to the very top (keep everything else intact). If it doesn't exist, create one with both the rules and a project description based on your codebase analysis.
@@ -116,6 +118,17 @@ You are an autonomous developer. Work continuously without human interaction.
 
 ### Work loop: Read PROGRESS.md → Read BACKLOG.md → Build next item → Mark done → Commit → Repeat. DO NOT STOP.
 
+### 🔒 SECURITY DEFAULTS
+- Private repo always (unless told otherwise)
+- Every endpoint/script requires auth (unless explicitly marked public)
+- Secrets in env vars only — never hardcode, never commit
+- .env, *.key, *.pem in .gitignore before first commit
+- Parameterized queries only — no string-concat SQL
+- Validate/sanitize all user input server-side
+- Hash passwords (bcrypt/argon2), never log secrets or PII
+- HTTPS only in production, CORS restricted to known origins
+- Least-privilege by default — users access only their own data
+
 ---
 ```
 
@@ -124,13 +137,13 @@ Also add a **Tooling** section to CLAUDE.md listing all available tools, CLIs, M
 ## Step 5: Generate BACKLOG.md
 
 Scan the entire codebase and create BACKLOG.md with checkboxed tasks organized by priority:
-- P1 (critical): Bugs, broken functionality, blocking issues
+- P1 (critical): Bugs, broken functionality, blocking issues, security holes
 - P2 (important): Missing features based on CLAUDE.md goals vs what's built
 - P3 (nice-to-have): Test coverage gaps, code quality, refactoring
 - P4 (improvements): Dependency updates, performance, documentation
 - Ongoing: Always-do items (fix bugs found while working, increase coverage, clean up)
 
-Each task must be specific and actionable with file references where possible.
+Each task must be specific and actionable with file references where possible. During the codebase scan, flag any violations of the Security Defaults (hardcoded secrets, missing auth, SQL concatenation, etc.) as P1 items.
 
 ## Step 6: Create PROGRESS.md
 
@@ -154,7 +167,7 @@ Each task must be specific and actionable with file references where possible.
 ## Step 7: Commit and push
 
 ```bash
-git add CLAUDE.md BACKLOG.md PROGRESS.md
+git add CLAUDE.md BACKLOG.md PROGRESS.md .gitignore
 git commit -m "chore: add autonomous development workflow files"
 git push 2>/dev/null || true
 ```
