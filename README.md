@@ -4,6 +4,8 @@
 
 Claude Code is powerful, but by default it stops after every task to ask "what next?" and pauses mid-work to ask "is this plan okay?" These skills eliminate both problems. Claude works continuously through a backlog, makes all technical decisions itself, and only stops when it genuinely needs human input (API keys, paid services, etc.).
 
+> 💡 **Want a full QA team reviewing the code Claude writes?** Pair this with [autonomous-ai-itagents](https://github.com/fransanda/autonomous-ai-itagents) — a 9-agent review pipeline (security, bugs, performance, dependencies, tests, architecture) that runs every task before it ships. Auto-detected when both repos are installed.
+
 ---
 
 ## What You Get
@@ -16,8 +18,10 @@ Claude Code is powerful, but by default it stops after every task to ask "what n
 
 Every new project kicked off with `/kickoff` or adopted via `/autonomy` automatically gets:
 - A private GitHub repo (via `gh` CLI)
-- `CLAUDE.md`, `BACKLOG.md`, `PROGRESS.md` setup
+- `CLAUDE.md`, `BACKLOG.md`, `PROGRESS.md`, `LESSONS.md` setup
 - A baked-in **🔒 Security Defaults** block (private by default, env vars for secrets, auth on every endpoint, parameterized queries, input validation, hashed passwords, HTTPS, least-privilege access) that Claude follows throughout development
+- **`LESSONS.md` auto-improving memory** — Claude appends learnings, future sessions read them. Per-project, no extra cost.
+- If [autonomous-ai-itagents](https://github.com/fransanda/autonomous-ai-itagents) is also installed → full multi-agent QA pipeline activates automatically
 
 ---
 
@@ -41,21 +45,21 @@ curl -fsSL https://raw.githubusercontent.com/fransanda/autonomous-claude-skills/
 
 Both installers automatically copy skills to **both** `~/.claude/skills/` and `~/.agents/skills/` — Claude Code reads from one or the other depending on your setup.
 
-### Manual install (if you prefer)
+### Optional: also install the multi-agent QA pipeline
 
-**Windows:**
-```powershell
-git clone https://github.com/fransanda/autonomous-claude-skills.git "$env:TEMP\_acs"
-foreach ($s in @("kickoff","autonomy","ship")) { foreach ($d in @("$env:USERPROFILE\.claude\skills","$env:USERPROFILE\.agents\skills")) { New-Item "$d\$s" -ItemType Directory -Force | Out-Null; Copy-Item "$env:TEMP\_acs\skills\$s\SKILL.md" "$d\$s\SKILL.md" -Force } }
-Remove-Item "$env:TEMP\_acs" -Recurse -Force
-```
+After installing this repo, optionally install the companion:
 
-**Mac / Linux:**
 ```bash
-git clone https://github.com/fransanda/autonomous-claude-skills.git /tmp/_acs
-for d in ~/.claude/skills ~/.agents/skills; do for s in kickoff autonomy ship; do mkdir -p "$d/$s" && cp "/tmp/_acs/skills/$s/SKILL.md" "$d/$s/SKILL.md"; done; done
-rm -rf /tmp/_acs
+# Mac/Linux
+curl -fsSL https://raw.githubusercontent.com/fransanda/autonomous-ai-itagents/main/install.sh | bash
 ```
+
+```powershell
+# Windows
+irm https://raw.githubusercontent.com/fransanda/autonomous-ai-itagents/main/install.ps1 | iex
+```
+
+`/kickoff` and `/autonomy` will detect it automatically and activate the agent pipeline on every new project.
 
 > **⚠️ Restart Claude Code after installing.** Skills are loaded at startup — they won't appear until you start a new session.
 
@@ -89,6 +93,9 @@ Claude scans the codebase, flags any missing tools or security issues, and start
 ```
 Claude wraps up, makes the app run, and tells you exactly how to test it.
 
+### With itagents installed:
+After `/kickoff` builds your project to a checkpoint, run `/itagentsreview` to push everything through the multi-agent QA pipeline. Reviewers catch bugs, security holes, performance issues, and dependency risks before code reaches `PROGRESS.md`.
+
 ---
 
 ## How It Works
@@ -103,13 +110,16 @@ By default, Claude Code has behaviors that prevent truly autonomous work:
 
 ### The Solution
 
-These skills create three files in every project:
+These skills create four files in every project:
 
 | File | Purpose |
 |---|---|
 | `CLAUDE.md` | Project description + explicit rules: *"never ask, never stop, never present plans — just execute and keep going"* + security defaults |
 | `BACKLOG.md` | A checkboxed task list. Claude picks the next unchecked item, builds it, checks it off, moves to the next. |
 | `PROGRESS.md` | State file so Claude can resume where it left off if the session restarts. |
+| `LESSONS.md` | Auto-improving memory — Claude appends learnings, future sessions read them. |
+
+If autonomous-ai-itagents is also installed, additional files appear: `BACKLOG_FUTURE.md`, `BACKLOG_BLOCKED.md`, `REVIEW_QUEUE.md`, and the `.agents/` folder with all specialist agent definitions.
 
 Claude reads these files, follows the rules, and works through the backlog continuously — like having a developer who never takes breaks.
 
@@ -126,6 +136,8 @@ Claude reads these files, follows the rules, and works through the backlog conti
 4. You answer everything in one go
 5. Claude **never asks another question** — it installs missing tools, generates project files, creates a private GitHub repo, and starts coding autonomously
 
+If autonomous-ai-itagents is detected, the project is set up with the full multi-agent file structure and Builder pushes finished tasks to `REVIEW_QUEUE.md` instead of `PROGRESS.md` directly.
+
 ---
 
 ### 🔧 `/autonomy` — Existing Project
@@ -136,7 +148,9 @@ Claude reads these files, follows the rules, and works through the backlog conti
 3. Claude creates a private GitHub repo if none exists
 4. Claude prepends autonomous rules + security defaults to CLAUDE.md (preserves everything else)
 5. Claude generates BACKLOG.md by scanning for bugs, missing features, test gaps — and flags security violations (hardcoded secrets, missing auth, SQL injection risks) as P1
-6. Claude creates PROGRESS.md and starts working
+6. Claude creates PROGRESS.md and LESSONS.md and starts working
+
+If autonomous-ai-itagents is detected, the existing project is retrofitted with the agent system files.
 
 ---
 
@@ -187,6 +201,7 @@ You're always in control. Just type in the terminal at any moment — Claude pau
 | Check status | `"What are you working on? What's left?"` |
 | Free up memory | `/compact` |
 | Wrap up for testing | `/ship` |
+| Run multi-agent review | `/itagentsreview` (requires autonomous-ai-itagents) |
 
 ---
 
@@ -205,6 +220,24 @@ Every `CLAUDE.md` generated by `/kickoff` or `/autonomy` includes this block, wh
 - Least-privilege by default — users access only their own data
 
 Nine lines. Minimal context cost. Claude applies them to every decision.
+
+---
+
+## 📚 Auto-improving memory (LESSONS.md)
+
+Every project gets a `LESSONS.md` file. Claude (and any specialist agents from itagents) append findings worth remembering:
+
+```markdown
+## 2026-04-20 — Builder [security] [auth]
+- Tried to use jsonwebtoken v8 — has CVE
+- LESSON: Use jose library for JWT in this project
+
+## 2026-04-21 — Builder [performance] [database]
+- N+1 query in the user list endpoint took 200ms+ per user
+- LESSON: Always eager-load relationships on list endpoints
+```
+
+At the start of every session, Claude reads `LESSONS.md`. Over time, the project gets smarter — same bugs don't get reintroduced, same patterns get applied automatically. Per-project, no extra infrastructure.
 
 ---
 
@@ -254,6 +287,7 @@ Each session works independently through its own BACKLOG.md.
 | Session dies completely | Relaunch Claude, type: *"Read PROGRESS.md and BACKLOG.md. Continue where you left off."* |
 | GitHub repo not created | Install GitHub CLI: `winget install GitHub.cli` (Windows) or `brew install gh` (Mac), then `gh auth login` |
 | `gh` installed but repo still not created | Run `gh auth login` — CLI is installed but not authenticated |
+| Want the multi-agent review pipeline | Install [autonomous-ai-itagents](https://github.com/fransanda/autonomous-ai-itagents), then re-run `/autonomy` in your project |
 
 ---
 
@@ -278,3 +312,7 @@ MIT — use however you want.
 ## Contributing
 
 Ideas, improvements, and new skills welcome. Open an issue or PR.
+
+## Sister project
+
+[autonomous-ai-itagents](https://github.com/fransanda/autonomous-ai-itagents) — adds a 9-agent QA pipeline (Coordinator, Builder, Code Reviewer, Bug Finder, Security Analyzer, Performance Optimizer, Dependency Auditor, Tester, Task Checker) on top of these skills. Auto-detected.
