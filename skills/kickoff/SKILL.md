@@ -1,6 +1,6 @@
 ---
 name: kickoff
-description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 20), checks required tooling (CLI/API/MCP), generates CLAUDE.md, BACKLOG.md, PROGRESS.md, LESSONS.md, creates a private GitHub repo, optionally activates the multi-agent QA pipeline (if autonomous-ai-itagents is installed), and starts fully autonomous development. Use with: /kickoff [project description]"
+description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 20), checks required tooling (CLI/API/MCP), generates CLAUDE.md, BACKLOG.md, PROGRESS.md, LESSONS.md, creates a private GitHub repo, optionally activates the multi-agent QA pipeline (if autonomous-claude-itagents is installed), and starts fully autonomous development. Use with: /kickoff [project description]"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 argument-hint: [brief project description]
 ---
@@ -108,7 +108,7 @@ git init
 
 The GitHub repo will be created in Step 6 after the initial commit exists — this avoids issues with empty repos and branch name mismatches.
 
-### Step 2: Detect if autonomous-ai-itagents is installed (multi-agent QA pipeline)
+### Step 2: Detect if autonomous-claude-itagents is installed (multi-agent QA pipeline)
 
 Silently check whether the companion repo's templates are available:
 
@@ -180,7 +180,7 @@ You are an autonomous developer. Work continuously without human interaction.
 If `ITAGENTS_AVAILABLE=1`, append this BEFORE the `---` separator:
 
 ```
-### 🤖 MULTI-AGENT QA PIPELINE (autonomous-ai-itagents installed)
+### 🤖 MULTI-AGENT QA PIPELINE (autonomous-claude-itagents installed)
 This project uses /itagentsreview for multi-agent code review. After Builder completes a task, it goes to REVIEW_QUEUE.md instead of straight to PROGRESS.md. The Coordinator orchestrates Code Reviewer, Bug Finder, Security Analyzer, Performance Optimizer, Dependency Auditor, Tester, and Task Checker before allowing it into PROGRESS.md.
 
 When building, you ARE the Builder agent. Read .agents/builder.md for your role.
@@ -332,7 +332,7 @@ Tasks the Builder has completed and committed, awaiting the multi-agent review p
 EOF
 ```
 
-If `ITAGENTS_AVAILABLE=0`, skip this step — the project runs in solo mode (no review pipeline). The user can install autonomous-ai-itagents later and re-run /autonomy to retrofit.
+If `ITAGENTS_AVAILABLE=0`, skip this step — the project runs in solo mode (no review pipeline). The user can install autonomous-claude-itagents later and re-run /autonomy to retrofit.
 
 ### Step 8: Initial commit and create private GitHub repo
 
