@@ -1,6 +1,6 @@
 ---
 name: kickoff
-description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 20), checks required tooling (CLI/API/MCP), generates CLAUDE.md, BACKLOG.md, PROGRESS.md, creates a private GitHub repo, and starts fully autonomous development. Use with: /kickoff [project description]"
+description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 20), checks required tooling (CLI/API/MCP), generates CLAUDE.md, BACKLOG.md, PROGRESS.md, LESSONS.md, creates a private GitHub repo, optionally activates the multi-agent QA pipeline (if autonomous-ai-itagents is installed), and starts fully autonomous development. Use with: /kickoff [project description]"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 argument-hint: [brief project description]
 ---
@@ -108,7 +108,24 @@ git init
 
 The GitHub repo will be created in Step 6 after the initial commit exists — this avoids issues with empty repos and branch name mismatches.
 
-### Step 2: Create CLAUDE.md
+### Step 2: Detect if autonomous-ai-itagents is installed (multi-agent QA pipeline)
+
+Silently check whether the companion repo's templates are available:
+
+```bash
+ITAGENTS_AVAILABLE=0
+for dir in "$HOME/.claude/skills/_itagents_templates/agents" "$HOME/.agents/skills/_itagents_templates/agents"; do
+    if [ -f "$dir/coordinator.md" ]; then
+        ITAGENTS_AVAILABLE=1
+        ITAGENTS_TEMPLATES_DIR="$dir"
+        break
+    fi
+done
+```
+
+If `ITAGENTS_AVAILABLE=1`, the project will be set up with the multi-agent QA pipeline (Step 7 below). Otherwise, it runs in solo mode.
+
+### Step 3: Create CLAUDE.md
 
 Generate a CLAUDE.md file with TWO sections:
 
@@ -137,13 +154,14 @@ You are an autonomous developer. Work continuously without human interaction.
 - ALWAYS write tests for new code
 - ALWAYS commit with conventional commits after each task
 - ALWAYS keep working until BACKLOG.md is fully complete
+- ALWAYS read LESSONS.md at session start to apply prior learnings
 
 ### ONLY stop if:
 - You need a credential/secret that doesn't exist
 - A paid service is required
 - An error persists after 3 fix attempts (log it in PROGRESS.md, skip to next task)
 
-### Work loop: Read PROGRESS.md → Read BACKLOG.md → Build next item → Mark done → Commit → Repeat. DO NOT STOP.
+### Work loop: Read LESSONS.md → Read PROGRESS.md → Read BACKLOG.md → Build next item → Mark done → Commit → Repeat. DO NOT STOP.
 
 ### 🔒 SECURITY DEFAULTS
 - Private repo always (unless told otherwise)
@@ -159,6 +177,16 @@ You are an autonomous developer. Work continuously without human interaction.
 ---
 ```
 
+If `ITAGENTS_AVAILABLE=1`, append this BEFORE the `---` separator:
+
+```
+### 🤖 MULTI-AGENT QA PIPELINE (autonomous-ai-itagents installed)
+This project uses /itagentsreview for multi-agent code review. After Builder completes a task, it goes to REVIEW_QUEUE.md instead of straight to PROGRESS.md. The Coordinator orchestrates Code Reviewer, Bug Finder, Security Analyzer, Performance Optimizer, Dependency Auditor, Tester, and Task Checker before allowing it into PROGRESS.md.
+
+When building, you ARE the Builder agent. Read .agents/builder.md for your role.
+For full pipeline behavior, see .agents/coordinator.md and run /itagentsreview.
+```
+
 **Section B:** A comprehensive project description synthesized from the user's input and Q&A. Include:
 - Project name, what it does, who it's for
 - Full tech stack (you decide the best one based on the answers)
@@ -169,7 +197,7 @@ You are an autonomous developer. Work continuously without human interaction.
 - Constraints, budget, and scope boundaries
 - Any assumptions you made where answers were unclear
 
-### Step 3: Create BACKLOG.md
+### Step 4: Create BACKLOG.md
 
 Generate a detailed BACKLOG.md with checkboxed tasks organized by priority:
 - Priority 1: Project setup and scaffolding
@@ -182,8 +210,9 @@ Generate a detailed BACKLOG.md with checkboxed tasks organized by priority:
 
 Aim for 30-60 specific, actionable tasks.
 
-### Step 4: Create PROGRESS.md
+### Step 5: Create PROGRESS.md and LESSONS.md
 
+PROGRESS.md:
 ```markdown
 # Progress Log
 
@@ -200,7 +229,37 @@ Aim for 30-60 specific, actionable tasks.
 - Brand new project, start from Priority 1
 ```
 
-### Step 5: Create .gitignore
+LESSONS.md (always create, even in solo mode — helps Claude get smarter at this project over time):
+```markdown
+# Project Lessons (Auto-improving memory)
+
+Agents and Builder append to this file when they find patterns worth remembering. Future sessions read these before working.
+
+## Tag taxonomy
+Use these tags so future reads can filter relevant lessons:
+- [security] [auth] [secrets] [injection] [xss] [csrf]
+- [performance] [database] [frontend] [bundle] [cache]
+- [bug] [race-condition] [edge-case] [null-safety] [concurrency]
+- [architecture] [design] [refactor] [coupling]
+- [testing] [a11y] [rbac] [e2e]
+- [dependencies] [cve] [license] [supply-chain]
+- [ui] [api] [mobile] [email] [payment]
+
+## Format
+```
+## YYYY-MM-DD — source [tag] [tag]
+- What was found / decided
+- LESSON: <generalized rule for future tasks>
+```
+
+---
+
+# Recent Entries
+
+(empty — fills as work progresses)
+```
+
+### Step 6: Create .gitignore
 
 Generate an appropriate .gitignore file based on the tech stack. ALWAYS include these regardless of stack (security-critical):
 ```
@@ -213,20 +272,79 @@ Generate an appropriate .gitignore file based on the tech stack. ALWAYS include 
 credentials.json
 secrets.json
 .DS_Store
+.agents/STATE.md
+.agents/LESSONS.md.archive-*
 ```
 Plus the usual stack-specific entries (`node_modules/`, `__pycache__/`, `dist/`, `build/`, `.next/`, etc.).
 
-### Step 6: Initial commit and create private GitHub repo
+### Step 7: Set up the multi-agent QA pipeline (if available)
 
-Commit the setup files first (this gives us a commit and a `main` branch to push):
+If `ITAGENTS_AVAILABLE=1`, create the agent system files:
+
+```bash
+mkdir -p .agents
+
+# Copy all default agents from the global templates
+cp "$ITAGENTS_TEMPLATES_DIR"/*.md .agents/
+
+# Create the additional state files
+cat > BACKLOG_FUTURE.md << 'EOF'
+# Backlog: Future Tasks
+
+Tasks deferred until their blocker is resolved. Coordinator promotes them to BACKLOG.md when the blocker appears in PROGRESS.md.
+
+## Format
+```
+- [ ] Task description
+  Blocker: <text matching a future PROGRESS.md entry>
+```
+
+## Tasks
+
+(empty)
+EOF
+
+cat > BACKLOG_BLOCKED.md << 'EOF'
+# Backlog: Blocked Tasks (Need Human)
+
+Tasks that failed the agent review pipeline 3 times. The Coordinator moved them here for human review.
+
+Each task includes the consolidated agent feedback so you can decide what to do.
+
+(empty)
+EOF
+
+cat > REVIEW_QUEUE.md << 'EOF'
+# Review Queue
+
+Tasks the Builder has completed and committed, awaiting the multi-agent review pipeline (run via /itagentsreview).
+
+## Format
+```
+## Task #<id>: <title>
+  Built at: <timestamp>
+  Commit: <sha>
+  Retry count: <0-3>
+  Feedback (after first review): <agent findings, if any>
+```
+
+(empty)
+EOF
+```
+
+If `ITAGENTS_AVAILABLE=0`, skip this step — the project runs in solo mode (no review pipeline). The user can install autonomous-ai-itagents later and re-run /autonomy to retrofit.
+
+### Step 8: Initial commit and create private GitHub repo
+
+Commit the setup files first:
 
 ```bash
 git add -A
-git commit -m "chore: initialize project with CLAUDE.md, BACKLOG.md, PROGRESS.md"
+git commit -m "chore: initialize project with CLAUDE.md, BACKLOG.md, PROGRESS.md, LESSONS.md"
 git branch -M main
 ```
 
-Now create the private GitHub repo. Use a robust check that handles missing gh, unauthenticated gh, and existing repos correctly:
+Now create the private GitHub repo:
 
 ```bash
 REPO_NAME=$(basename "$PWD")
@@ -253,14 +371,26 @@ else
 fi
 ```
 
-Replace `PROJECT_DESCRIPTION_HERE` with a real one-line description of the project.
+Replace `PROJECT_DESCRIPTION_HERE` with a real one-line description.
 
-If gh isn't installed or authenticated, note it in PROGRESS.md under "Blocked" so the user sees it.
+If gh isn't installed or authenticated, note it in PROGRESS.md under "Blocked".
 
 ## Phase 3: Start Building Autonomously
 
-Say ONLY: "✅ Project initialized. Starting autonomous development now."
+If `ITAGENTS_AVAILABLE=1`, say:
 
-Then read CLAUDE.md, read BACKLOG.md, and begin working through Priority 1 tasks continuously. No more questions. Just build.
+"✅ Project initialized with multi-agent QA pipeline. Building now — finished tasks go to REVIEW_QUEUE.md. Run /itagentsreview when ready to QA + ship."
+
+Otherwise say:
+
+"✅ Project initialized (solo mode). Starting autonomous development now."
+
+Then read CLAUDE.md, read LESSONS.md, read BACKLOG.md, and begin working through Priority 1 tasks continuously.
+
+**If ITAGENTS is active:** after you complete and commit each task, append it to REVIEW_QUEUE.md (with task ID, title, timestamp, commit SHA, retry_count=0) and continue building the next task. Do NOT run reviews yourself — the user runs /itagentsreview when they want.
+
+**If solo mode:** mark tasks done in BACKLOG.md and append to PROGRESS.md as you finish them, like before.
+
+No more questions. Just build.
 
 **Push to GitHub periodically.** After every 3-5 commits, run `git push`. Do not ask before pushing.

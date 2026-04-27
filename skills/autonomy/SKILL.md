@@ -1,6 +1,6 @@
 ---
 name: autonomy
-description: "Add autonomous development to an existing project. Scans the codebase, checks required tooling (CLI/API/MCP), creates a private GitHub repo if needed, adds autonomous rules to CLAUDE.md, generates BACKLOG.md and PROGRESS.md, then starts working continuously. Use with: /autonomy"
+description: "Add autonomous development to an existing project. Scans the codebase, checks required tooling (CLI/API/MCP), creates a private GitHub repo if needed, adds autonomous rules to CLAUDE.md, generates BACKLOG.md, PROGRESS.md, LESSONS.md, optionally activates the multi-agent QA pipeline (if autonomous-ai-itagents is installed), then starts working continuously. Use with: /autonomy"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
@@ -11,7 +11,24 @@ You are adding autonomous development capabilities to an EXISTING project.
 Read the entire codebase structure. If a CLAUDE.md already exists, read it.
 Understand: the tech stack, architecture, current state, what's built, what's missing.
 
-## Step 2: Tooling audit
+## Step 2: Detect if autonomous-ai-itagents is installed
+
+Silently check whether the companion repo's agent templates are available:
+
+```bash
+ITAGENTS_AVAILABLE=0
+for dir in "$HOME/.claude/skills/_itagents_templates/agents" "$HOME/.agents/skills/_itagents_templates/agents"; do
+    if [ -f "$dir/coordinator.md" ]; then
+        ITAGENTS_AVAILABLE=1
+        ITAGENTS_TEMPLATES_DIR="$dir"
+        break
+    fi
+done
+```
+
+If `ITAGENTS_AVAILABLE=1`, the project will be retrofitted with the multi-agent QA pipeline.
+
+## Step 3: Tooling audit
 
 Based on the codebase analysis, determine EVERY tool, service, and integration needed to continue developing this project.
 
@@ -22,7 +39,7 @@ Silently run checks to detect what's installed:
 - Check if any MCP servers could help (Playwright, Google APIs, databases, etc.)
 - Check if a git remote exists: `git remote -v`
 
-**ONLY show tools that are MISSING or need user action.** Do NOT list tools that are already installed and working — the user doesn't need to know about those.
+**ONLY show tools that are MISSING or need user action.** Do NOT list tools that are already installed and working.
 
 If there are missing tools, credentials, or no GitHub repo, present this to the user:
 
@@ -46,13 +63,13 @@ Should I install the missing tools and create the GitHub repo? Provide any crede
 After this, I won't ask anything else — I'll start building.
 ```
 
-If EVERYTHING is already set up (all tools installed, credentials present, remote exists), skip the tooling report entirely and go straight to Step 4. Only bother the user if something needs their action.
+If EVERYTHING is already set up (all tools installed, credentials present, remote exists), skip the tooling report entirely and go straight to Step 5. Only bother the user if something needs their action.
 
 Wait for the user to respond if you showed a tooling report.
 
 **CRITICAL:** This is the ONLY question you ask. After the user responds, never ask anything again.
 
-## Step 3: Install approved tools & create GitHub repo
+## Step 4: Install approved tools & create GitHub repo
 
 For each tool the user approved:
 - Run the install command
@@ -69,7 +86,6 @@ if [ -z "$REMOTE" ]; then
     if command -v gh >/dev/null 2>&1; then
         GH_USER=$(gh api user -q .login 2>/dev/null || true)
         if [ -n "$GH_USER" ]; then
-            # Make sure there is at least one commit before pushing
             if ! git rev-parse HEAD >/dev/null 2>&1; then
                 git add -A && git commit -m "chore: initial commit" --allow-empty
             fi
@@ -97,11 +113,9 @@ fi
 
 Replace `PROJECT_DESCRIPTION_HERE` with a real one-line description from the codebase analysis.
 
-If gh isn't installed or authenticated, note it in PROGRESS.md under "Blocked".
+Also verify the .gitignore includes `.env`, `*.key`, `*.pem`, `credentials.json`, `.agents/STATE.md`, `.agents/LESSONS.md.archive-*` and other secret-bearing files. Add them if missing.
 
-Also verify the .gitignore includes `.env`, `*.key`, `*.pem`, `credentials.json`, and other secret-bearing files. Add them if missing.
-
-## Step 4: Update or create CLAUDE.md
+## Step 5: Update or create CLAUDE.md
 
 If CLAUDE.md exists, PREPEND the autonomous rules block to the very top (keep everything else intact). If it doesn't exist, create one with both the rules and a project description based on your codebase analysis.
 
@@ -130,13 +144,14 @@ You are an autonomous developer. Work continuously without human interaction.
 - ALWAYS write tests for new code
 - ALWAYS commit with conventional commits after each task
 - ALWAYS keep working until BACKLOG.md is fully complete
+- ALWAYS read LESSONS.md at session start to apply prior learnings
 
 ### ONLY stop if:
 - You need a credential/secret that doesn't exist
 - A paid service is required
 - An error persists after 3 fix attempts (log it in PROGRESS.md, skip to next task)
 
-### Work loop: Read PROGRESS.md → Read BACKLOG.md → Build next item → Mark done → Commit → Repeat. DO NOT STOP.
+### Work loop: Read LESSONS.md → Read PROGRESS.md → Read BACKLOG.md → Build next item → Mark done → Commit → Repeat. DO NOT STOP.
 
 ### 🔒 SECURITY DEFAULTS
 - Private repo always (unless told otherwise)
@@ -152,9 +167,64 @@ You are an autonomous developer. Work continuously without human interaction.
 ---
 ```
 
+If `ITAGENTS_AVAILABLE=1`, append this before the `---` separator:
+
+```
+### 🤖 MULTI-AGENT QA PIPELINE (autonomous-ai-itagents installed)
+This project uses /itagentsreview for multi-agent code review. After Builder completes a task, it goes to REVIEW_QUEUE.md instead of straight to PROGRESS.md. The Coordinator orchestrates Code Reviewer, Bug Finder, Security Analyzer, Performance Optimizer, Dependency Auditor, Tester, and Task Checker before allowing it into PROGRESS.md.
+
+When building, you ARE the Builder agent. Read .agents/builder.md for your role.
+For full pipeline behavior, see .agents/coordinator.md and run /itagentsreview.
+```
+
 Also add a **Tooling** section to CLAUDE.md listing all available tools, CLIs, MCP servers, and credentials so future sessions know what's available.
 
-## Step 5: Generate BACKLOG.md
+## Step 6: Set up the multi-agent QA pipeline (if available)
+
+If `ITAGENTS_AVAILABLE=1`, retrofit the project with the agent system files:
+
+```bash
+mkdir -p .agents
+
+# Copy default agents (don't overwrite existing custom ones)
+for f in "$ITAGENTS_TEMPLATES_DIR"/*.md; do
+    name=$(basename "$f")
+    if [ ! -f ".agents/$name" ]; then
+        cp "$f" ".agents/$name"
+    fi
+done
+
+# Create state files if missing
+[ ! -f BACKLOG_FUTURE.md ] && cat > BACKLOG_FUTURE.md << 'EOF'
+# Backlog: Future Tasks
+
+Tasks deferred until their blocker is resolved. Coordinator promotes them to BACKLOG.md when the blocker appears in PROGRESS.md.
+
+## Tasks
+
+(empty)
+EOF
+
+[ ! -f BACKLOG_BLOCKED.md ] && cat > BACKLOG_BLOCKED.md << 'EOF'
+# Backlog: Blocked Tasks (Need Human)
+
+Tasks that failed the agent review pipeline 3 times. The Coordinator moved them here for human review.
+
+(empty)
+EOF
+
+[ ! -f REVIEW_QUEUE.md ] && cat > REVIEW_QUEUE.md << 'EOF'
+# Review Queue
+
+Tasks the Builder has completed and committed, awaiting the multi-agent review pipeline (run via /itagentsreview).
+
+(empty)
+EOF
+```
+
+If `ITAGENTS_AVAILABLE=0`, skip this step. The project runs in solo mode.
+
+## Step 7: Generate BACKLOG.md
 
 Scan the entire codebase and create BACKLOG.md with checkboxed tasks organized by priority:
 - P1 (critical): Bugs, broken functionality, blocking issues, security holes
@@ -165,8 +235,9 @@ Scan the entire codebase and create BACKLOG.md with checkboxed tasks organized b
 
 Each task must be specific and actionable with file references where possible. During the codebase scan, flag any violations of the Security Defaults (hardcoded secrets, missing auth, SQL concatenation, etc.) as P1 items.
 
-## Step 6: Create PROGRESS.md
+## Step 8: Create PROGRESS.md and LESSONS.md
 
+PROGRESS.md (if not exists):
 ```markdown
 # Progress Log
 
@@ -184,18 +255,51 @@ Each task must be specific and actionable with file references where possible. D
 - Starting from BACKLOG.md Priority 1
 ```
 
-## Step 7: Commit and push
+LESSONS.md (if not exists):
+```markdown
+# Project Lessons (Auto-improving memory)
+
+Future sessions read this file before working. Append findings with format:
+
+## YYYY-MM-DD — source [tag] [tag]
+- What was found / decided
+- LESSON: <generalized rule for future tasks>
+
+## Tag taxonomy
+[security] [auth] [performance] [database] [bug] [edge-case] [architecture] [testing] [a11y] [rbac] [dependencies] [ui] [api]
+
+---
+
+# Recent Entries
+
+(empty)
+```
+
+## Step 9: Commit and push
 
 ```bash
-git add CLAUDE.md BACKLOG.md PROGRESS.md .gitignore
+git add CLAUDE.md BACKLOG.md PROGRESS.md LESSONS.md .gitignore
+if [ -d .agents ]; then
+    git add .agents/ BACKLOG_FUTURE.md BACKLOG_BLOCKED.md REVIEW_QUEUE.md 2>/dev/null || true
+fi
 git commit -m "chore: add autonomous development workflow files"
 git push 2>/dev/null || true
 ```
 
-## Step 8: Start building
+## Step 10: Start building
 
-Say ONLY: "✅ Autonomous mode activated. Starting work on the first backlog item."
+If `ITAGENTS_AVAILABLE=1`, say:
 
-Then immediately read CLAUDE.md, read BACKLOG.md, and start working through tasks continuously. Do not ask any questions. Do not present plans. Just build.
+"✅ Autonomous mode activated with multi-agent QA pipeline. Starting work — completed tasks go to REVIEW_QUEUE.md. Run /itagentsreview when ready to QA + ship."
+
+Otherwise say:
+
+"✅ Autonomous mode activated. Starting work on the first backlog item."
+
+Then immediately read CLAUDE.md, read LESSONS.md, read BACKLOG.md, and start working through tasks continuously. Do not ask any questions. Do not present plans. Just build.
+
+**If ITAGENTS is active:** after each completed task, append to REVIEW_QUEUE.md instead of moving directly to PROGRESS.md. The user runs /itagentsreview when they want the multi-agent QA pipeline to validate work.
+
+**If solo mode:** mark tasks done in BACKLOG.md and append to PROGRESS.md as you finish them, like before.
 
 **Push to GitHub periodically.** After every 3-5 commits, run `git push`. Do not ask before pushing.
