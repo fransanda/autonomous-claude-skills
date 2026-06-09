@@ -127,6 +127,11 @@ If it doesn't exist, create it with defaults (or overrides from arguments):
 - Delete the "Last Run" timestamps to force an immediate scan
 - Models: change any line above to use a different model (opus, sonnet, haiku, or any future model name)
 - The orchestration model is your session model and cannot be overridden here — the rest are subagent models
+
+## PR Merge Policy
+- Auto-merge after /improve: no
+- Merge scope: improve-only
+- Merge model: opus
 ```
 
 If IMPROVE_CONFIG.md already exists, read the `## Models` section. If the section is missing (older config), add it with the defaults above.
@@ -370,6 +375,50 @@ Review and merge the ones you approve. Rejected PRs can be closed.
 
 ---
 
+## Phase 5.5: Auto-merge pending PRs (optional)
+
+Read IMPROVE_CONFIG.md `## PR Merge Policy`:
+- If `Auto-merge after /improve: no` → skip this phase entirely
+- If `Auto-merge after /improve: yes`:
+
+```bash
+# Check if /mergeprs skill is available
+MERGEPRS_AVAILABLE=0
+for dir in "$HOME/.claude/skills/mergeprs" "$HOME/.agents/skills/mergeprs"; do
+    if [ -f "$dir/SKILL.md" ]; then
+        MERGEPRS_AVAILABLE=1
+        break
+    fi
+done
+```
+
+If `/mergeprs` is not installed:
+```
+Note: Auto-merge is enabled but /mergeprs skill is not installed.
+Install autonomous-claude-itagents to enable autonomous PR merging.
+Skipping auto-merge.
+```
+And continue to Phase 6.
+
+If available:
+1. Print: `Checking pending PRs for merge...`
+2. Execute the same per-PR processing loop as `/mergeprs`:
+   - Discover open PRs filtered by configured `Merge scope`
+   - For each PR: adaptive pipeline review -> Builder fixes -> pr-merger final gate (max 5 retries)
+   - Use the configured `Merge model` for the pr-merger agent
+3. Log merge results to the Phase 7 AUDIT.md session entry under a new subsection:
+
+```markdown
+### PRs Auto-Merged (via Phase 5.5)
+| PR | Title | Branch | Result | Retries |
+|---|---|---|---|---|
+| #<n> | <title> | <branch> | MERGED / FAILED / SKIPPED | <count> |
+```
+
+4. Include merged/failed/skipped counts in the Phase 8 summary output
+
+---
+
 ## Phase 6: Verify (full health check)
 
 **Model: use `verification_model` from config when dispatching verification subagents.**
@@ -462,6 +511,7 @@ Print:
 
   🔧 Fixes applied:        X  (committed to main)
   💡 PRs created:           Y  (pending your approval)
+  🔀 PRs auto-merged:       Z  (via Phase 5.5, if enabled)
   ❌ Fixes failed:          Z  (see AUDIT.md)
 
   📊 Production readiness:  X/Y criteria met (see VISION.md)
