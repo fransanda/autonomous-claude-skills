@@ -4,7 +4,7 @@
 
 Claude Code is powerful, but by default it stops after every task to ask "what next?" and pauses mid-work to ask "is this plan okay?" These skills eliminate both problems. Claude works continuously through a backlog, makes all technical decisions itself, and only stops when it genuinely needs human input (API keys, paid services, etc.).
 
-> 💡 **Want a full QA team reviewing the code Claude writes?** Pair this with [autonomous-claude-itagents](https://github.com/fransanda/autonomous-claude-itagents) — a 9-agent review pipeline (security, bugs, performance, dependencies, tests, architecture) that runs every task before it ships. Auto-detected when both repos are installed.
+> 💡 **Want a full QA team reviewing the code Claude writes?** Pair this with [autonomous-claude-itagents](https://github.com/fransanda/autonomous-claude-itagents) — a 10-agent review pipeline (security, bugs, performance, dependencies, tests, architecture, PR merge) that runs every task before it ships. Auto-detected when both repos are installed.
 
 ---
 
@@ -364,6 +364,8 @@ Ideas, improvements, and new skills welcome. Open an issue or PR.
         ↓
 /itagentsreview     → Deep multi-agent QA review (optional, requires itagents)
         ↓
+/mergeprs           → Autonomous PR review + merge (optional, requires itagents)
+        ↓
 /ship               → Wrap up, verify, test report
         ↓
 /improve            → Maintain (periodic scans, fixes, improvement PRs)
@@ -371,4 +373,4 @@ Ideas, improvements, and new skills welcome. Open an issue or PR.
 
 ## Sister project
 
-[autonomous-claude-itagents](https://github.com/fransanda/autonomous-claude-itagents) — adds a 9-agent QA pipeline (Coordinator, Builder, Code Reviewer, Bug Finder, Security Analyzer, Performance Optimizer, Dependency Auditor, Tester, Task Checker) on top of these skills. Auto-detected. `/improve` leverages these agents for deeper scanning when installed.
+[autonomous-claude-itagents](https://github.com/fransanda/autonomous-claude-itagents) — adds a 10-agent QA pipeline (Coordinator, Builder, Code Reviewer, Bug Finder, Security Analyzer, Performance Optimizer, Dependency Auditor, Tester, Task Checker, PR Merger) on top of these skills. Auto-detected. `/improve` leverages these agents for deeper scanning when installed, and optional Phase 5.5 can auto-merge pending improvement PRs via `/mergeprs`.
