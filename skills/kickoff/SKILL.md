@@ -1,6 +1,6 @@
 ---
 name: kickoff
-description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 20), checks required tooling (CLI/API/MCP), generates CLAUDE.md, BACKLOG.md, PROGRESS.md, LESSONS.md, creates a private GitHub repo, optionally activates the multi-agent QA pipeline (if autonomous-claude-itagents is installed), and starts fully autonomous development. Use with: /kickoff [project description]"
+description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 26), checks required tooling (CLI/API/MCP), generates CLAUDE.md, BACKLOG.md, PROGRESS.md, LESSONS.md, creates a private GitHub repo, optionally activates the multi-agent QA pipeline (if autonomous-claude-itagents is installed), and starts fully autonomous development. Use with: /kickoff [project description]"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 argument-hint: [brief project description]
 ---
@@ -13,7 +13,7 @@ This is the ONLY time you are allowed to ask the user anything. After this phase
 
 ### Part A: Project Questions
 
-Ask up to 20 questions in ONE message to fully understand the project. Cover ALL of these categories. Skip questions only if the user's description already clearly answers them:
+Ask up to 26 questions in ONE message to fully understand the project. Cover ALL of these categories. Skip questions only if the user's description already clearly answers them:
 
 **Core Product:**
 1. What are the 3-5 most important features? What should the MVP include?
@@ -236,7 +236,7 @@ PROGRESS.md:
 ```
 
 LESSONS.md (always create, even in solo mode — helps Claude get smarter at this project over time):
-```markdown
+````markdown
 # Project Lessons (Auto-improving memory)
 
 Agents and Builder append to this file when they find patterns worth remembering. Future sessions read these before working.
@@ -263,7 +263,7 @@ Use these tags so future reads can filter relevant lessons:
 # Recent Entries
 
 (empty — fills as work progresses)
-```
+````
 
 ### Step 5b: Create VISION.md
 
@@ -333,10 +333,16 @@ IMPROVE_CONFIG.md:
 - Last fix scan: never
 - Last improvement scan: never
 
+## PR Merge Policy
+- Auto-merge after /improve: no
+- Merge scope: improve-only
+- Merge model: opus
+
 ## Notes
 - Edit this file to change the schedule, or pass arguments: /improve fixes every 12h improvements every 3d
 - Delete the "Last Run" timestamps to force an immediate scan
 - Models: change any line above to use a different model (opus, sonnet, haiku, or any future model name)
+- Set "Auto-merge after /improve: yes" to auto-merge pending improve/* PRs each cycle (requires autonomous-claude-itagents)
 ```
 
 ### Step 6: Create .gitignore
@@ -355,15 +361,16 @@ secrets.json
 .agents/STATE.md
 .agents/LESSONS.md.archive-*
 PAUSE.md
-IMPROVE_CONFIG.md
 ```
+
+(IMPROVE_CONFIG.md is intentionally NOT gitignored — /improve commits its timestamps after each cycle.)
 Plus the usual stack-specific entries (`node_modules/`, `__pycache__/`, `dist/`, `build/`, `.next/`, etc.).
 
 ### Step 7: Set up the multi-agent QA pipeline (if available)
 
 If `ITAGENTS_AVAILABLE=1`, create the agent system files:
 
-```bash
+````bash
 mkdir -p .agents
 
 # Copy all default agents from the global templates
@@ -412,7 +419,7 @@ Tasks the Builder has completed and committed, awaiting the multi-agent review p
 
 (empty)
 EOF
-```
+````
 
 If `ITAGENTS_AVAILABLE=0`, skip this step — the project runs in solo mode (no review pipeline). The user can install autonomous-claude-itagents later and re-run /autonomy to retrofit.
 
@@ -429,7 +436,7 @@ git branch -M main
 Now create the private GitHub repo:
 
 ```bash
-REPO_NAME=$(basename "$PWD")
+REPO_NAME=$(basename "$PWD" | tr ' ' '-')
 
 if command -v gh >/dev/null 2>&1; then
     GH_USER=$(gh api user -q .login 2>/dev/null || true)

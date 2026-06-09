@@ -18,6 +18,7 @@ else
         exit 1
     fi
     TEMP_CLONE="$(mktemp -d)/autonomous-claude-skills"
+    trap '[ -n "$TEMP_CLONE" ] && rm -rf "$(dirname "$TEMP_CLONE")"' EXIT
     echo "Fetching skills..."
     git clone --depth=1 --quiet https://github.com/fransanda/autonomous-claude-skills.git "$TEMP_CLONE"
     SOURCE_ROOT="$TEMP_CLONE"
@@ -41,10 +42,6 @@ for skill in kickoff autonomy ship improve; do
     echo "  ✅ Installed /$skill"
     INSTALLED=$((INSTALLED+1))
 done
-
-if [ -n "$TEMP_CLONE" ] && [ -d "$TEMP_CLONE" ]; then
-    rm -rf "$(dirname "$TEMP_CLONE")"
-fi
 
 echo ""
 if [ $INSTALLED -eq 4 ]; then

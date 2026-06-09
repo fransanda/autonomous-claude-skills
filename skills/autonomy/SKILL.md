@@ -79,7 +79,7 @@ For each tool the user approved:
 Create a private GitHub repo if one doesn't already exist as the remote:
 
 ```bash
-REPO_NAME=$(basename "$PWD")
+REPO_NAME=$(basename "$PWD" | tr ' ' '-')
 REMOTE=$(git remote get-url origin 2>/dev/null || true)
 
 if [ -z "$REMOTE" ]; then
@@ -113,7 +113,7 @@ fi
 
 Replace `PROJECT_DESCRIPTION_HERE` with a real one-line description from the codebase analysis.
 
-Also verify the .gitignore includes `.env`, `*.key`, `*.pem`, `credentials.json`, `.agents/STATE.md`, `.agents/LESSONS.md.archive-*`, `PAUSE.md`, `IMPROVE_CONFIG.md` and other secret-bearing or local control files. Add them if missing.
+Also verify the .gitignore includes `.env`, `*.key`, `*.pem`, `credentials.json`, `.agents/STATE.md`, `.agents/LESSONS.md.archive-*`, `PAUSE.md` and other secret-bearing or local control files. Add them if missing. (IMPROVE_CONFIG.md is intentionally NOT gitignored — it gets committed so its schedule and timestamps persist.)
 
 ## Step 5: Update or create CLAUDE.md
 
@@ -196,7 +196,7 @@ for f in "$ITAGENTS_TEMPLATES_DIR"/*.md; do
 done
 
 # Create state files if missing
-[ ! -f BACKLOG_FUTURE.md ] && cat > BACKLOG_FUTURE.md << 'EOF'
+if [ ! -f BACKLOG_FUTURE.md ]; then cat > BACKLOG_FUTURE.md << 'EOF'
 # Backlog: Future Tasks
 
 Tasks deferred until their blocker is resolved. Coordinator promotes them to BACKLOG.md when the blocker appears in PROGRESS.md.
@@ -205,22 +205,25 @@ Tasks deferred until their blocker is resolved. Coordinator promotes them to BAC
 
 (empty)
 EOF
+fi
 
-[ ! -f BACKLOG_BLOCKED.md ] && cat > BACKLOG_BLOCKED.md << 'EOF'
+if [ ! -f BACKLOG_BLOCKED.md ]; then cat > BACKLOG_BLOCKED.md << 'EOF'
 # Backlog: Blocked Tasks (Need Human)
 
 Tasks that failed the agent review pipeline 3 times. The Coordinator moved them here for human review.
 
 (empty)
 EOF
+fi
 
-[ ! -f REVIEW_QUEUE.md ] && cat > REVIEW_QUEUE.md << 'EOF'
+if [ ! -f REVIEW_QUEUE.md ]; then cat > REVIEW_QUEUE.md << 'EOF'
 # Review Queue
 
 Tasks the Builder has completed and committed, awaiting the multi-agent review pipeline (run via /itagentsreview).
 
 (empty)
 EOF
+fi
 ```
 
 If `ITAGENTS_AVAILABLE=0`, skip this step. The project runs in solo mode.
@@ -294,10 +297,16 @@ IMPROVE_CONFIG.md (if not exists):
 - Last fix scan: never
 - Last improvement scan: never
 
+## PR Merge Policy
+- Auto-merge after /improve: no
+- Merge scope: improve-only
+- Merge model: opus
+
 ## Notes
 - Edit this file to change the schedule, or pass arguments: /improve fixes every 12h improvements every 3d
 - Delete the "Last Run" timestamps to force an immediate scan
 - Models: change any line above to use a different model (opus, sonnet, haiku, or any future model name)
+- Set "Auto-merge after /improve: yes" to auto-merge pending improve/* PRs each cycle (requires autonomous-claude-itagents)
 ```
 
 ## Step 7: Generate BACKLOG.md
@@ -358,7 +367,7 @@ git add CLAUDE.md BACKLOG.md PROGRESS.md LESSONS.md VISION.md AUDIT.md IMPROVE_C
 if [ -d .agents ]; then
     git add .agents/ BACKLOG_FUTURE.md BACKLOG_BLOCKED.md REVIEW_QUEUE.md 2>/dev/null || true
 fi
-git commit -m "chore: add autonomous development workflow files"
+git commit -m "chore: add autonomous development workflow files" || echo "Nothing new to commit"
 git push 2>/dev/null || true
 ```
 

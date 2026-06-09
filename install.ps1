@@ -17,11 +17,16 @@ if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot "skills\kickoff\SKILL
 } else {
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
         Write-Host "Error: git is required to install. Install git first." -ForegroundColor Red
-        exit 1
+        return
     }
     $tempClone = Join-Path $env:TEMP "_acs_install_$(Get-Random)"
     Write-Host "Fetching skills..." -ForegroundColor Cyan
     git clone --depth=1 --quiet https://github.com/fransanda/autonomous-claude-skills.git $tempClone
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Error: failed to clone autonomous-claude-skills (network down or repo unavailable)." -ForegroundColor Red
+        if (Test-Path $tempClone) { Remove-Item $tempClone -Recurse -Force }
+        return
+    }
     $sourceRoot = $tempClone
 }
 

@@ -134,7 +134,7 @@ If it doesn't exist, create it with defaults (or overrides from arguments):
 - Merge model: opus
 ```
 
-If IMPROVE_CONFIG.md already exists, read the `## Models` section. If the section is missing (older config), add it with the defaults above.
+If IMPROVE_CONFIG.md already exists, read the `## Models` section. If the section is missing (older config), add it with the defaults above. Same for the `## PR Merge Policy` section — if missing, add it with the defaults above (auto-merge stays off unless the user enables it).
 
 ### 4. Read or create AUDIT.md
 
@@ -378,7 +378,7 @@ Review and merge the ones you approve. Rejected PRs can be closed.
 ## Phase 5.5: Auto-merge pending PRs (optional)
 
 Read IMPROVE_CONFIG.md `## PR Merge Policy`:
-- If `Auto-merge after /improve: no` → skip this phase entirely
+- If the section is missing or `Auto-merge after /improve: no` → skip this phase entirely
 - If `Auto-merge after /improve: yes`:
 
 ```bash
@@ -493,9 +493,9 @@ Append any patterns worth remembering:
 
 ### Commit the state files
 ```bash
-git add AUDIT.md LESSONS.md IMPROVE_CONFIG.md VISION.md PROGRESS.md
-git commit -m "docs: /improve session — X fixes, Y PRs proposed"
-git push
+git add AUDIT.md LESSONS.md IMPROVE_CONFIG.md VISION.md PROGRESS.md 2>/dev/null || true
+git commit -m "docs: /improve session — X fixes, Y PRs proposed" || echo "Nothing to commit"
+git push || echo "Push failed (offline?) — will push next cycle"
 ```
 
 ---
