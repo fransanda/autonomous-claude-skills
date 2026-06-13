@@ -85,7 +85,9 @@ For each tool the user approved:
 Create a private GitHub repo if one doesn't already exist as the remote:
 
 ```bash
-REPO_NAME=$(basename "$PWD" | tr ' ' '-')
+# Repo name = the folder name as a clean slug (lowercase; non-alphanumeric runs → single hyphen).
+# This same slug is reused as the Vercel project name → `<slug>.vercel.app`.
+REPO_NAME=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
 REMOTE=$(git remote get-url origin 2>/dev/null || true)
 
 if [ -z "$REMOTE" ]; then
@@ -170,6 +172,19 @@ You are an autonomous developer. Work continuously without human interaction.
 - Hash passwords (bcrypt/argon2), never log secrets or PII
 - HTTPS only in production, CORS restricted to known origins
 - Least-privilege by default — users access only their own data
+
+### 🏷️ NAMING & DEPLOYMENT CONVENTIONS
+- The local folder name — slugified (lowercase; spaces and other non-alphanumeric characters → hyphens) — is the project's single canonical identifier. Reuse this same slug everywhere.
+- GitHub repo name = the folder slug (e.g. folder `My Cool App` → repo `my-cool-app`). Keep them identical.
+- If the project has a UI / website, deploy it to Vercel using the SAME slug as the Vercel project name, so the production URL is `<slug>.vercel.app`.
+
+### 🧰 AVAILABLE TOOLING (CLIs already installed on this machine)
+These CLIs are installed (and where relevant authenticated) — you HAVE access through them, so reach for them when needed instead of assuming you lack access:
+- `gh` — GitHub: repos, PRs, issues
+- `vercel` — Vercel: deploy web/UI (production URL `<slug>.vercel.app`)
+- `supabase` — Supabase: Postgres database, auth, storage, edge functions
+- `gcloud` — Google Cloud: GCP services and Google APIs (e.g. use `gcloud` to reach Google Cloud/Drive instead of saying "no access")
+You are NOT required to use these — pick the best tool for the job — but they are available, and the user may ask for a specific one.
 
 ---
 ```
