@@ -19,9 +19,10 @@ Claude Code is powerful, but by default it stops after every task to ask "what n
 
 Every new project kicked off with `/kickoff` or adopted via `/autonomy` automatically gets:
 - A private GitHub repo (via `gh` CLI)
-- `CLAUDE.md`, `BACKLOG.md`, `PROGRESS.md`, `LESSONS.md`, `VISION.md` setup
+- `CLAUDE.md`, `BACKLOG.md`, `PROGRESS.md`, `LESSONS.md`, `VISION.md`, `WIREFRAME.yaml` setup
 - A baked-in **🔒 Security Defaults** block (private by default, env vars for secrets, auth on every endpoint, parameterized queries, input validation, hashed passwords, HTTPS, least-privilege access) that Claude follows throughout development
 - **`VISION.md`** — project goals, user workflows, and production-readiness criteria. Used by `/improve` to know what to fix vs. what to propose.
+- **`WIREFRAME.yaml`** — the UI source of truth (pages, nav, flows, components, states with auth/roles and each CTA's expected destination). `/uitest` and `/improve` check the running app against it to catch broken flows, missing-login gaps, dead drag/back affordances, and missing empty/error states.
 - **`LESSONS.md` auto-improving memory** — Claude appends learnings, future sessions read them. Per-project, no extra cost.
 - **`AUDIT.md`** — tracks every `/improve` session: what was scanned, fixed, and proposed.
 - If [autonomous-claude-itagents](https://github.com/fransanda/autonomous-claude-itagents) is also installed → full multi-agent QA pipeline activates automatically
@@ -122,6 +123,7 @@ These skills create project files:
 | `PROGRESS.md` | State file so Claude can resume where it left off if the session restarts. |
 | `LESSONS.md` | Auto-improving memory — Claude appends learnings, future sessions read them. |
 | `VISION.md` | Project goals, user workflows, and production-readiness criteria. `/improve` uses this to decide what to fix vs. propose. |
+| `WIREFRAME.yaml` | The **UI source of truth** — a machine-readable map of the app's pages, navigation, flows, components, and states (auth/roles per page, each CTA's expected destination, modal/sheet interactions, form success/error outcomes). `/uitest` and `/improve` check the running app against it to catch broken flows, missing-login gaps, dead affordances, and missing empty/error states. Always created (a stub for non-UI projects); committed; Claude keeps it in sync as the UI changes. |
 | `AUDIT.md` | Log of every `/improve` session — what was scanned, fixed, and proposed. |
 | `IMPROVE_CONFIG.md` | Configurable schedule for fix and improvement cycles. Gitignored (machine-local); a committed `IMPROVE_CONFIG.example.md` placeholder gives collaborators the defaults. See [`templates/IMPROVE_CONFIG.md`](templates/IMPROVE_CONFIG.md) for all options. |
 

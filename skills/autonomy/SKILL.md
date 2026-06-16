@@ -1,6 +1,6 @@
 ---
 name: autonomy
-description: "Add autonomous development to an existing project. Scans the codebase, checks required tooling (CLI/API/MCP), creates a private GitHub repo if needed, adds autonomous rules to CLAUDE.md, generates BACKLOG.md, PROGRESS.md, LESSONS.md, optionally activates the multi-agent QA pipeline (if autonomous-claude-itagents is installed), then starts working continuously. Use with: /autonomy"
+description: "Add autonomous development to an existing project. Scans the codebase, checks required tooling (CLI/API/MCP), creates a private GitHub repo if needed, adds autonomous rules to CLAUDE.md, generates BACKLOG.md, PROGRESS.md, LESSONS.md, VISION.md, and WIREFRAME.yaml (the UI source of truth, reverse-engineered from the codebase), optionally activates the multi-agent QA pipeline (if autonomous-claude-itagents is installed), then starts working continuously. Use with: /autonomy"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
@@ -149,6 +149,7 @@ You are an autonomous developer. Work continuously without human interaction.
 - ALWAYS make all technical decisions yourself
 - ALWAYS move to the next BACKLOG.md task immediately after completing one
 - ALWAYS update BACKLOG.md (check the box) and PROGRESS.md after each task
+- ALWAYS keep WIREFRAME.yaml in sync when you add, change, or remove a page, flow, screen, or modal (UI projects) — it is the UI source of truth that /uitest and /improve check the app against; update it freely without being asked
 - ALWAYS write tests for new code
 - ALWAYS commit with conventional commits after each task
 - ALWAYS keep working until BACKLOG.md is fully complete
@@ -287,6 +288,75 @@ If VISION.md does not already exist, generate one by analyzing the codebase:
 
 If VISION.md already exists, leave it as-is.
 
+### Step 6b2: Create WIREFRAME.yaml (the UI source of truth) — if not exists
+
+If `WIREFRAME.yaml` does not already exist, create it by **reverse-engineering the codebase**. It is the
+machine-readable map of the UI's pages, navigation, flows, components, and states; `/uitest` and `/improve`
+read it to verify the running app matches intent. It is **committed** (NOT gitignored). Keep it updated as
+the UI evolves.
+
+Decide `has_ui` by detecting a frontend (React/Vue/Next/Svelte/Angular/Astro/Expo/React-Native in
+package.json, or `.html`/`templates/`/`public/` server-rendered views).
+
+**If the project has a UI**, derive the spec from the code: enumerate routes (file-based routes or router
+config) → `pages`; infer `auth`/`roles` from route guards / RBAC middleware / nav visibility; map nav bars/
+tab bars/sidebars → `navigation`; find modals/sheets/dialogs → `components`; trace primary CTAs and form
+submits → `actions`; map the end-to-end workflows in VISION.md → `journeys`. Schema (YAML):
+
+```yaml
+meta: { project: <slug>, has_ui: true }
+
+navigation:                      # global nav shells, referenced by pages (omit if none)
+  - id: <shell-id>
+    type: bottom-tabs            # bottom-tabs | header | sidebar | drawer | footer
+    items: { <Label>: <page-id> }
+    shown_on: [<page-id>, ...]
+
+pages:
+  - id: <page-id>
+    route: /<path>
+    auth: <true|false>
+    roles: [<role>, ...]         # omit = all
+    shell: <shell-id|none>
+    actions:                     # control label -> destination (page id | component id | self | none | "external: <name> -> <page>")
+      "<Visible CTA label>": <dest>
+      back: <page-id|none>       # reserved: back affordance; `none` = intentional forced step
+      submit: { on_success: <dest>, on_error: <message-id> }   # reserved: branched form outcome
+    form: { fields: [{ name: <f>, required: true, format: email }] }   # optional, when validation matters
+    states:                      # optional — only the SPECIFIC expected content (UI Stack)
+      empty: { text: "<copy>", cta: "<label> -> <dest>" }
+      error: { text: "<copy>" }
+
+journeys:                        # optional — critical end-to-end paths to verify whole
+  <name>: [<page-id>, <page-id>, ...]
+
+components:                      # overlays/sheets/modals/dialogs/confirms
+  - id: <component-id>
+    type: bottom-sheet           # bottom-sheet | modal | dialog | confirm | drawer | popover
+    trigger: "<what opens it>"
+    dismiss: [drag-down, tap-outside, close-button]   # declared interactions the tester verifies
+    actions: { "<label>": <dest> }
+
+messages:                        # non-page feedback worth verifying
+  - id: <message-id>
+    type: inline-error           # toast | inline-error | banner | tooltip | empty-state | loading
+    trigger: "<what triggers it>"
+    text: "<expected copy>"
+```
+
+Encode the **auth boundary** explicitly: CTAs that start a logged-out user must point to signup/login, and
+every account-gated page must be `auth: true`. Only declare the detail that matters — the tester applies
+universal heuristics (loading/empty/error existence, accessibility, history) without you spelling them out.
+Where the *current code* clearly violates intent (e.g. a "Get started" CTA that skips login), still record
+the **intended** flow in the wireframe and let `/improve`/`/uitest` flag the code as the thing to fix.
+
+**If the project has no UI**, write the stub:
+```yaml
+meta: { project: <slug>, has_ui: false }
+# No UI yet. If a UI is ever added, populate navigation/pages/journeys/components/messages above FIRST —
+# /uitest and /improve read this file as the UI source of truth.
+```
+
 ### Step 6c: Create AUDIT.md and IMPROVE_CONFIG.md (if not exist)
 
 AUDIT.md (if not exists):
@@ -386,7 +456,7 @@ Future sessions read this file before working. Append findings with format:
 ## Step 9: Commit and push
 
 ```bash
-git add CLAUDE.md BACKLOG.md PROGRESS.md LESSONS.md VISION.md AUDIT.md IMPROVE_CONFIG.example.md .gitignore
+git add CLAUDE.md BACKLOG.md PROGRESS.md LESSONS.md VISION.md WIREFRAME.yaml AUDIT.md IMPROVE_CONFIG.example.md .gitignore
 if [ -d .agents ]; then
     git add .agents/ BACKLOG_FUTURE.md BACKLOG_BLOCKED.md REVIEW_QUEUE.md 2>/dev/null || true
 fi

@@ -1,6 +1,6 @@
 ---
 name: improve
-description: "Autonomous project improvement loop. Scans the project against VISION.md, fixes bugs/gaps/security autonomously (on main), and proposes new features via PRs (on branches, human approval required). Configurable timing for fix cycles and improvement cycles. Use with: /improve or /improve fixes every 12h improvements every 3d"
+description: "Autonomous project improvement loop. Scans the project against VISION.md and WIREFRAME.yaml (the UI source of truth), fixes bugs/gaps/security and broken UI flows/auth/states autonomously (on main), and proposes new features via PRs (on branches, human approval required). Configurable timing for fix cycles and improvement cycles. Use with: /improve or /improve fixes every 12h improvements every 3d"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 argument-hint: "[optional: fixes every Xh/Xd improvements every Xh/Xd]"
 ---
@@ -151,7 +151,11 @@ Newest sessions first. Human reviews this to track what agents did.
 
 ### 5. Load project context
 
-Read: CLAUDE.md, PROGRESS.md, LESSONS.md, BACKLOG.md (if exists).
+Read: CLAUDE.md, PROGRESS.md, LESSONS.md, BACKLOG.md (if exists), and **WIREFRAME.yaml** (if exists).
+`WIREFRAME.yaml` is the UI source of truth — its declared pages/auth/flows/components/states are part of
+"what should work," so a gap between it and the running app is a FIX, exactly like a VISION.md gap.
+If `WIREFRAME.yaml` is missing but the project has a UI, create it this cycle (reverse-engineer it from
+the routes/components, same as `/autonomy` Step 6b2) — the absence of a UI map is itself a gap to close.
 
 ### 6. Detect itagents
 
@@ -203,6 +207,28 @@ For each workflow in VISION.md "Core user workflows":
 - Can the user navigate between steps? (links, buttons, redirects)
 - What happens on edge cases? (back button, refresh, invalid state, empty data)
 - Are there error states? Loading states? Empty states?
+
+### UI intent scan — verify the app against WIREFRAME.yaml (if it exists / project has a UI)
+The wireframe is the declared intent; the running app must match it. Check, and treat every mismatch as a FIX:
+- **Flow / destination** — does each `actions` entry actually navigate to its declared destination? (Catches
+  "Let's get started" landing on Home instead of the signup page.)
+- **Auth boundary** — is every `auth: true` page actually gated, and unreachable while logged out? **Derive
+  required auth from VISION.md too:** if VISION.md says users have accounts/roles (e.g. buyers/sellers) but
+  the app exposes no login/signup or lets a CTA skip it, that is a FIX even if the wireframe is thin.
+- **Declared affordances** — do `components` behave as declared (e.g. a `dismiss: [drag-down]` sheet actually
+  drags/dismisses, not scrolls the page behind it)? Does each `back: <dest>` page have a working back? (`back:
+  none` = intentional, not a gap.)
+- **Form outcomes** — does an invalid submit show the declared `on_error` and stay put; a valid one reach
+  `on_success`?
+- **States** — do declared `states.empty/error` render their content; and (universal) does every data screen
+  handle loading/empty/error at all (no infinite spinner / blank / crash)?
+- **Drift** — routes in code missing from the wireframe, or wireframe pages missing from code. Reconcile:
+  if the *code* is right, update the wireframe (free, no approval); if the *intent* is right, fix the code.
+
+If **itagents is available and the project has a UI**, run the UI checks for real by deploying the
+`/uitest` army (or the `ui-tester` agent) against the declared flows/journeys — passing it `WIREFRAME.yaml`
+as the answer key — and fold its Critical/High flaws into the FIX list. If itagents is not present, do the
+above as a static code+route analysis.
 
 ### Code quality scan
 - Run the test suite → collect failures
@@ -268,6 +294,11 @@ Split ALL findings into two lists:
 ### 🔧 FIXES (autonomous — will commit to main)
 A finding is a FIX if:
 - VISION.md describes a workflow/feature/criterion and the code doesn't deliver it
+- **WIREFRAME.yaml declares a flow/destination/auth-gate/affordance/state and the app doesn't deliver it**
+  (e.g. a CTA reaches the wrong page, an `auth: true` page is reachable logged-out, a declared sheet doesn't
+  dismiss, a declared `back` is missing, an invalid submit doesn't show its `on_error`)
+- **VISION.md implies accounts/roles but the app has no working login/signup, or a CTA bypasses it** (missing
+  auth boundary)
 - A test fails
 - A security vulnerability exists
 - A bug causes incorrect behavior
@@ -276,6 +307,9 @@ A finding is a FIX if:
 - An endpoint lacks auth/validation that CLAUDE.md security defaults require
 - A dependency has a known CVE with an available fix
 - Something that worked before is now broken (regression)
+
+> Reconciling the wireframe itself (adding a route the code legitimately has, fixing a stale label) is not a
+> code fix — just update `WIREFRAME.yaml` directly and freely; it needs no approval.
 
 ### 💡 IMPROVEMENTS (branch + PR — needs human approval)
 A finding is an IMPROVEMENT if:
@@ -495,7 +529,7 @@ Append any patterns worth remembering:
 
 ### Commit the state files
 ```bash
-git add AUDIT.md LESSONS.md VISION.md PROGRESS.md 2>/dev/null || true
+git add AUDIT.md LESSONS.md VISION.md WIREFRAME.yaml PROGRESS.md 2>/dev/null || true
 git commit -m "docs: /improve session — X fixes, Y PRs proposed" || echo "Nothing to commit"
 git push || echo "Push failed (offline?) — will push next cycle"
 ```

@@ -1,6 +1,6 @@
 ---
 name: kickoff
-description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 26), checks required tooling (CLI/API/MCP), generates CLAUDE.md, BACKLOG.md, PROGRESS.md, LESSONS.md, creates a private GitHub repo, optionally activates the multi-agent QA pipeline (if autonomous-claude-itagents is installed), and starts fully autonomous development. Use with: /kickoff [project description]"
+description: "Start a new project from an empty folder. Asks comprehensive discovery questions (up to 26), checks required tooling (CLI/API/MCP), generates CLAUDE.md, BACKLOG.md, PROGRESS.md, LESSONS.md, VISION.md, and WIREFRAME.yaml (the UI source of truth), creates a private GitHub repo, optionally activates the multi-agent QA pipeline (if autonomous-claude-itagents is installed), and starts fully autonomous development. Use with: /kickoff [project description]"
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 argument-hint: [brief project description]
 ---
@@ -162,6 +162,7 @@ You are an autonomous developer. Work continuously without human interaction.
 - ALWAYS make all technical decisions yourself
 - ALWAYS move to the next BACKLOG.md task immediately after completing one
 - ALWAYS update BACKLOG.md (check the box) and PROGRESS.md after each task
+- ALWAYS keep WIREFRAME.yaml in sync when you add, change, or remove a page, flow, screen, or modal (UI projects) — it is the UI source of truth that /uitest and /improve check the app against; update it freely without being asked
 - ALWAYS write tests for new code
 - ALWAYS commit with conventional commits after each task
 - ALWAYS keep working until BACKLOG.md is fully complete
@@ -321,6 +322,76 @@ Generate a VISION.md from the user's discovery answers:
 (empty — /improve will populate via PRs)
 ```
 
+### Step 5b2: Create WIREFRAME.yaml (the UI source of truth)
+
+Always create `WIREFRAME.yaml` at the project root — even for backend/CLI projects (a stub). It is the
+machine-readable map of the UI's intended pages, navigation, flows, components, and states; `/uitest` and
+`/improve` read it to verify the running app matches intent. It is **committed** (NOT gitignored) — it's
+design intent, not machine-local state. Keep it updated as the UI evolves.
+
+Decide `has_ui` from the platform answer (web app, mobile app, desktop, browser extension = UI; pure
+API/CLI/library = no UI).
+
+**If the project has a UI**, populate it from the discovery answers — planned pages/screens, auth + roles
+(Q8/Q9), and the end-to-end workflows (Q25 / VISION.md). Schema (YAML):
+
+```yaml
+meta: { project: <slug>, has_ui: true }
+
+navigation:                      # global nav shells, referenced by pages (omit if none yet)
+  - id: <shell-id>
+    type: bottom-tabs            # bottom-tabs | header | sidebar | drawer | footer
+    items: { <Label>: <page-id> }
+    shown_on: [<page-id>, ...]
+
+pages:
+  - id: <page-id>
+    route: /<path>
+    auth: <true|false>
+    roles: [<role>, ...]         # who may see it (omit = all)
+    shell: <shell-id|none>
+    actions:                     # control label -> destination (page id | component id | self | none | "external: <name> -> <page>")
+      "<Visible CTA label>": <dest>
+      back: <page-id|none>       # reserved: back affordance; `none` = intentional forced step
+      submit:                    # reserved: form outcome — use the map form only when it branches
+        on_success: <dest>
+        on_error: <message-id>
+    form:                        # optional — only when validation matters
+      fields: [{ name: <f>, required: true, format: email }]
+    states:                      # optional — only the SPECIFIC expected content (UI Stack)
+      empty: { text: "<copy>", cta: "<label> -> <dest>" }
+      error: { text: "<copy>" }
+
+journeys:                        # optional — critical end-to-end paths to verify whole
+  <name>: [<page-id>, <page-id>, ...]
+
+components:                      # overlays/sheets/modals/dialogs/confirms
+  - id: <component-id>
+    type: bottom-sheet           # bottom-sheet | modal | dialog | confirm | drawer | popover
+    trigger: "<what opens it>"
+    dismiss: [drag-down, tap-outside, close-button]   # declared interactions the tester verifies
+    actions: { "<label>": <dest> }
+
+messages:                        # non-page feedback worth verifying
+  - id: <message-id>
+    type: inline-error           # toast | inline-error | banner | tooltip | empty-state | loading
+    trigger: "<what triggers it>"
+    text: "<expected copy>"
+```
+
+Critically, encode the **auth boundary**: any CTA that starts a logged-out user (e.g. "Get started",
+"Sign up") must point to the signup/login page, and every page that needs an account must be `auth: true`.
+This is what prevents the "Get started dumps you into Home with no login" class of bug. Only declare the
+detail that matters — the tester also applies universal heuristics (loading/empty/error existence,
+accessibility, history) without you spelling them out.
+
+**If the project has no UI**, write the stub:
+```yaml
+meta: { project: <slug>, has_ui: false }
+# No UI yet. If a UI is ever added, populate navigation/pages/journeys/components/messages above FIRST —
+# /uitest and /improve read this file as the UI source of truth.
+```
+
 ### Step 5c: Create AUDIT.md and IMPROVE_CONFIG.md
 
 AUDIT.md:
@@ -455,7 +526,7 @@ Commit the setup files first:
 
 ```bash
 git add -A
-git commit -m "chore: initialize project with CLAUDE.md, BACKLOG.md, PROGRESS.md, LESSONS.md, VISION.md"
+git commit -m "chore: initialize project with CLAUDE.md, BACKLOG.md, PROGRESS.md, LESSONS.md, VISION.md, WIREFRAME.yaml"
 git branch -M main
 ```
 
